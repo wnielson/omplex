@@ -1,0 +1,115 @@
+import logging
+import os
+import requests
+import uuid
+import xml.etree.ElementTree as ET
+import cPickle as pickle
+
+from __init__ import __version__
+
+log = logging.getLogger('conf')
+
+class Settings(object):
+    _path = None
+    _data = {
+        "myplex_username":  "",
+        "myplex_password":  "",
+        "myplex_token":     "",
+        "player_name":      "Raspberry PI",
+        "plex_server":      "",
+        "client_uuid":      uuid.uuid4()
+    }
+
+    def __getattr__(self, name):
+        return self._data[name]
+
+    def __setattr__(self, name, value):
+        if name in self._data:
+            self._data[name] = value
+            self.save()
+        else:
+            super(Settings, self).__setattr__(name, value)
+
+    def __get_file(self, path, mode="rb+", create=True):
+        created = False
+
+        if not os.path.exists(path):
+            try:
+                fh = open(path, mode)
+            except IOError, e:
+                if e.errno == 2 and create:
+                    fh = open(path, 'wb+')
+                    pickle.dump(self._data, fh)
+                    fh.close()
+                    created = True
+                else:
+                    raise e
+            except Exception, e:
+                log.error("Error opening settings from path: %s" % path)
+                return None
+
+        # This should work now
+        return open(path, mode), created
+
+    def load(self, path, create=True):
+        fh, created = self.__get_file(path, "rb+", create)
+        if not created:
+            try:
+                data = pickle.load(fh)
+                self._data.update(data)
+            except Exception, e:
+                log.error("Error loading settings from pickle: %s" % e)
+                fh.close()
+                return False
+
+        self._path = path
+        fh.close()
+        return True
+
+    def save(self):
+        fh, created = self.__get_file(self._path, "wb+", True)
+
+        try:
+            pickle.dump(self._data, fh)
+            fh.flush()
+            fh.close()
+        except Exception, e:
+            log.error("Error saving settings to pickle: %s" % e)
+            return False
+
+        return True
+
+    def login_myplex(self, username, password, test=False):
+        url     = "https://my.plexapp.com/users/sign_in.xml"
+        auth    = (username, password)
+        token   = None
+        headers = {
+            "Content-Type":             "application/xml",
+            "X-Plex-Client-Identifier": self.client_uuid,
+            "X-Plex-Product":           "Plex Media Player",
+            "X-Plex-Version":           __version__,
+            "X-Plex-Provides":          "player",
+            "X-Plex-Platform":          "Raspberry Pi"
+        }
+
+        try:
+            response = requests.post(url, auth=auth, headers=headers)
+            root     = ET.fromstring(response.text)
+            token    = root.findall('authentication-token')[0].text
+            user     = root.findall('username')[0].text
+            log.info("Logged in to myPlex as %s" % user)
+        except Exception, e:
+            log.error("Error logging into MyPlex: %s" % e)
+
+        if not test and token:
+            self.myplex_token = token
+
+        if token is not None:
+            self.myplex_token    = token
+            self.myplex_username = username
+            self.myplex_password = password
+            return True
+
+        return False
+
+settings = Settings()
