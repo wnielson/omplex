@@ -1,0 +1,160 @@
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="stylesheet" href="http://plex.tv/web/css/main-desktop.css?hash=7809908" />
+</head>
+
+<body>
+  <div class="container">
+    <!--<h3>OMPlex Settings</h3>-->
+    <div class="filter-bar">
+      
+      <!--
+      <div class="filter-bar-right">
+        <button class="toggle-advanced-btn btn btn-sm btn-default basic-setting">Show Advanced</button>
+        <button class="toggle-advanced-btn btn btn-sm btn-default advanced-setting">Hide Advanced</button>
+      </div>
+      -->
+    
+      <span id="primary-server-dropdown" class="dropdown">
+        <span class="dropdown-placeholder">OMPlex Settings</span>
+      </span>
+    </div>
+
+    <div class="row row-loading hide">
+      <div class="loading loading-inline"></div>
+    </div>
+
+    <div class="row row-settings">
+    
+      <div class="col-md-3">
+        <ul class="settings-nav nav nav-stacked nav-sidebar">
+          <li><a class="btn-gray selected" href="#general-web-group">General</a></li>
+          <!--
+          <li class="advanced-setting"><a class="btn-gray" href="#debug-web-group">Debug</a></li>
+          <li><a class="btn-gray" href="#search-web-group">Search</a></li>
+          <li><a class="btn-gray" href="#player-web-group">Player</a></li>
+          -->
+        </ul>
+      </div>
+    
+      <div class="col-md-9">
+        <form id="web-settings-form">
+          <div id="debug-web-group" class="settings-group active">
+            <div class="form-group ">
+              <label class="control-label" for="input_FriendlyName_c">Player Name</label>
+              <input type="text" class="form-control" name="player_name" value="omplex">
+            </div>
+
+            <div class="form-group ">
+              <label class="control-label" for="input_FriendlyName_c">MyPlex Username</label>
+              <input type="text" class="form-control" name="myplex_username" value="" placeholder="username">
+            </div>
+
+            <div class="form-group ">
+              <label class="control-label" for="input_FriendlyName_c">MyPlex Password</label>
+              <input type="password" class="form-control" name="myplex_password" value="" placeholder="password">
+            </div>
+          </div>      
+
+          <div class="form-footer">
+            <button type="submit" class="submit-btn btn btn-lg btn-primary btn-loading">
+              <div class="loading loading-sm"></div>
+              <span class="btn-label">Save Changes</span>
+            </button>
+            <span class="form-message"></span>
+          </div>
+
+        </form>
+      </div>
+    </div> <!-- end row -->
+
+  </div><!-- end container -->
+
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+  <script type="text/javascript">
+    function show_message(message, level)
+    {
+      var icon, el;
+
+      switch(level)
+      {
+        case "success":
+          icon = "circle-ok";
+          break;
+        case "warning":
+        case "error":
+          icon = "circle-exclamation-mark";
+          break;
+        case "info":
+        default:
+          icon = "circle-info";
+          break;
+      };
+
+      el = $("<div/>").attr("class", "alert has-"+level);
+      el.append($("<button class=\"close-btn btn-link\" />").append($("<i class=\"glyphicon remove\" />")));
+      el.append($("<i/>").attr("class", "alert-icon glyphicon "+icon));
+      el.append($("<h4/>").text(message));
+
+      $("body").append(el);
+
+      setTimeout(function() {
+        el.fadeOut("slow", function() {
+          el.remove();
+        });
+      }, 2000);
+
+    };
+
+    function update_settings()
+    {
+      $.getJSON("/data/settings/", function(data)
+      {
+        var form = $('form');
+        $.each(data, function(key, value)
+        {
+          form.find("input[name='"+key+"']").val(value);
+        });
+      });
+    };
+
+    function save_settings()
+    {
+      $(".row-settings").addClass("hide");
+      $(".row-loading").removeClass("hide");
+
+      $.post("/data/settings/", $('form').serialize(), function(data)
+      {
+        $(".row-settings").removeClass("hide");
+        $(".row-loading").addClass("hide");
+
+        if (data.success) {
+          show_message("Settings updated!", "success");
+        } else {
+          show_message("Error saving settings: "+data.message, "error");
+        }
+      });
+    };
+
+    $(function()
+    {
+      $("body").delegate("div.alert i.remove", "click", function()
+      {
+        console.log(this);
+        $(this).parents("div.alert").hide().remove();
+      });
+
+      $("form").on("submit", function() {
+        save_settings();
+        return false;
+      })
+
+      update_settings();
+    });
+  </script>
+
+</body>
+</html>
