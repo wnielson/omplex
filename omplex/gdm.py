@@ -64,7 +64,7 @@ class PlexGDM:
         data = {
             "Name":                  str(c_name),
             "Port":                  str(c_post),
-            "Product":               "Plex for RaspberryPi",
+            "Product":               "RaspberryPi",
             "Content-Type":          "plex/media-player",
             "Protocol":              "plex",
             "Protocol-Version":      "1",

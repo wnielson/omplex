@@ -37,7 +37,7 @@ class TimelineManager(threading.Thread):
 
     def run(self):
         while not self.halt:
-            if playerManager.player and playerManager.media and not playerManager.player.paused:
+            if playerManager.player and playerManager.media and not playerManager.is_paused():
                 self.SendTimelineToSubscribers()
                 playerManager.update()
             time.sleep(1)
@@ -112,6 +112,7 @@ class TimelineManager(threading.Thread):
             options["protocol"]          = playerManager.media.path.scheme
             options["port"]              = playerManager.media.path.port
             options["machineIdentifier"] = playerManager.media.get_machine_identifier()
+            options["seekRange"]         = "0-%s" % options["duration"]
 
             controllable.append("playPause")
             controllable.append("stop")
@@ -119,6 +120,7 @@ class TimelineManager(threading.Thread):
             controllable.append("stepForward")
             controllable.append("subtitleStream")
             controllable.append("audioStream")
+            controllable.append("seekTo")
 
             options["controllable"] = ",".join(controllable)
         else:

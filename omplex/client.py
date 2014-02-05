@@ -272,6 +272,11 @@ class HttpHandler(BaseHTTPRequestHandler):
     def stepFunction(self, path, arguments):
         log.info("HttpHandler::stepFunction not implemented yet")
 
+    def seekTo(self, path, arguments):
+        offset = int(int(arguments.get("offset", 0))*1e-3)
+        log.debug("HttpHandler::seekTo offset %ss" % offset)
+        playerManager.seek(offset)
+
 
 class HttpSocketServer(ThreadingMixIn, HTTPServer):
     allow_reuse_address = True
