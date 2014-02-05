@@ -6,7 +6,6 @@ import math
 import os
 import pexpect
 import re
-import shlex
 
 from threading import Thread, RLock
 from time import sleep
