@@ -1,13 +1,16 @@
+import cgi
 import datetime
 import json
 import logging
 import os
+import posixpath
 import threading
 import requests
+import urllib
 import urlparse
-import SocketServer
 
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
+from SimpleHTTPServer import SimpleHTTPRequestHandler
 from SocketServer import ThreadingMixIn
 
 try:
@@ -28,7 +31,9 @@ from timeline import timelineManager
 
 log = logging.getLogger("client")
 
-class HttpHandler(BaseHTTPRequestHandler):
+STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
+
+class HttpHandler(SimpleHTTPRequestHandler):
     xmlOutput   = None
     completed   = False
     
@@ -172,11 +177,79 @@ class HttpHandler(BaseHTTPRequestHandler):
 
         self.send_end()
 
+    def translate_path(self, path):
+        path = path.split('?',1)[0]
+        path = path.split('#',1)[0]
+        path = posixpath.normpath(urllib.unquote(path))
+        return os.path.join(STATIC_DIR, path.lstrip("/"))
+
+
     def do_OPTIONS(self):
         self.handle_request("OPTIONS")
 
+    def do_POST(self):
+        ctype, pdict = cgi.parse_header(self.headers.getheader('content-type'))
+        if ctype == 'multipart/form-data':
+            postvars = cgi.parse_multipart(self.rfile, pdict)
+        elif ctype == 'application/x-www-form-urlencoded':
+            length = int(self.headers.getheader('content-length'))
+            postvars = cgi.parse_qs(self.rfile.read(length), keep_blank_values=1)
+        else:
+            postvars = {}
+
+        if self.path == "/data/settings/":
+            response = {
+                "success": True,
+                "message": ""
+            }
+            try:
+                myplex_username = postvars.get("myplex_username")[0]
+                myplex_password = postvars.get("myplex_password")[0]
+                player_name     = postvars.get("player_name")[0]
+            except:
+                response.update({
+                    "success": False,
+                    "message": "Invalid data"
+                })
+
+            if response["success"]:
+                if not settings.login_myplex(myplex_username, myplex_password):
+                    response.update({
+                        "success": False,
+                        "message": "Invalid MyPlex Credentials"
+                    })
+
+            if response["success"]:
+                settings.myplex_username = myplex_username
+                settings.myplex_password = myplex_password
+                settings.player_name     = player_name
+
+            data = json.dumps(response)
+
+            self.send_response(200)
+            self.send_header("Content-type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            
+            self.wfile.write(data)
+
     def do_GET(self):
-        self.handle_request("GET")
+        if self.path == "/":           
+            f = self.send_head()
+            if f:
+                self.copyfile(f, self.wfile)
+                f.close()
+        elif self.path == "/data/settings/":
+            data = json.dumps(settings._data)
+            
+            self.send_response(200)
+            self.send_header("Content-type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            
+            self.wfile.write(data)
+        else:
+            self.handle_request("GET")
     
     def send_end(self):
         if self.completed:

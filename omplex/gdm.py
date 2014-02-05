@@ -60,11 +60,11 @@ class PlexGDM:
         if self.debug >= level:
             print "PlexGDM: %s" % message
 
-    def clientDetails(self, c_id, c_name, c_post, c_product, c_version):
+    def clientDetails(self, c_id, c_name, c_port, c_product, c_version):
         data = {
             "Name":                  str(c_name),
-            "Port":                  str(c_post),
-            "Product":               "RaspberryPi",
+            "Port":                  str(c_port),
+            "Product":               str(c_product),
             "Content-Type":          "plex/media-player",
             "Protocol":              "plex",
             "Protocol-Version":      "1",
@@ -312,3 +312,5 @@ class PlexGDM:
     def start_all(self, daemon = False):
         self.start_discovery(daemon)
         self.start_registration(daemon)
+
+gdm = PlexGDM()
