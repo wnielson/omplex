@@ -6,7 +6,7 @@ import time
 
 from client import HttpServer
 from conf import settings
-from gdm import PlexGDM
+from gdm import gdm
 from timeline import timelineManager
 
 __author__ = "Weston Nielson <wnielson@github>"
@@ -18,6 +18,10 @@ HTTP_PORT   = 3000
 log = logging.getLogger('')
 
 logging.getLogger('requests').setLevel(logging.CRITICAL)
+
+def update_gdm_settings(name=None, value=None):
+    gdm.clientDetails(settings.client_uuid, settings.player_name,
+        settings.http_port, "RaspberryPi", __version__)
 
 def main():
     logging.basicConfig(level=logging.DEBUG, stream=sys.stdout, format="%(asctime)s [%(levelname)8s] %(message)s")
@@ -32,8 +36,9 @@ def main():
                 break
             print "Error logging in..."
 
-    gdm = PlexGDM()
-    gdm.clientDetails(settings.client_uuid, __prog__, HTTP_PORT, __prog__, __version__)
+    settings.add_listener(update_gdm_settings)
+    
+    update_gdm_settings()
     gdm.start_all()
 
     log.info("Started GDM service")

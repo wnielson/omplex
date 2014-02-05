@@ -10,14 +10,17 @@ from __init__ import __version__
 log = logging.getLogger('conf')
 
 class Settings(object):
+    _listeners = []
+
     _path = None
     _data = {
         "myplex_username":  "",
         "myplex_password":  "",
         "myplex_token":     "",
-        "player_name":      "Raspberry PI",
+        "player_name":      "omplex",
         "plex_server":      "",
-        "client_uuid":      uuid.uuid4()
+        "http_port":        "3000",
+        "client_uuid":      str(uuid.uuid4())
     }
 
     def __getattr__(self, name):
@@ -27,6 +30,12 @@ class Settings(object):
         if name in self._data:
             self._data[name] = value
             self.save()
+
+            for callback in self._listeners:
+                try:
+                    callback(name, value)
+                except:
+                    pass
         else:
             super(Settings, self).__setattr__(name, value)
 
@@ -111,5 +120,17 @@ class Settings(object):
             return True
 
         return False
+
+    def add_listener(self, callback):
+        """
+        Register a callback to be called anytime a setting value changes.
+        An example callback function:
+
+            def my_callback(key, value):
+                # Do something with the new setting ``value``...
+
+        """
+        if callback not in self._listeners:
+            self._listeners.append(callback)
 
 settings = Settings()
