@@ -22,7 +22,7 @@ displays basic inforation about the currenly playing video.  It mimicks the
 look and feel of Plex Home Theater's OSD, with some minor differences.  Below
 is an example of what the OSD looks like:
 
-![alt text](https://github.com/wnielson/omplex/raw/master/osd/screenshots/example1.jpg "OSD Screenshot")
+![OSD](https://github.com/wnielson/omplex/raw/master/osd/screenshots/example1.jpg "OSD Screenshot")
 
 Much of this work is based off of the (now defunct) PyPlex project, with the
 main difference being that OMPlex uses the (undocumented) "Timelines API".
@@ -57,8 +57,16 @@ You'll need to install ``libjpeg`` and make sure you have the ``GLESv2`` library
 Go into the ``osd`` directory and type ``make``.  If everything goes well, you should now have
 a file ``libosd.so``.
 
-## Alternatives
+## Configuration
 
+The first time you launch ``OMPLex`` it'll ask for your MyPlex credentials.  This will change
+in the near future and all configuration will be done via a web browser.  Currently, you can access
+the configuration page, once you've started ``OMPLex`` at ``http://127.0.0.1:3000/``.  Replace the
+IP address with your Pi's actual IP address.  You should get a page like this:
+
+![Web Config](https://github.com/wnielson/omplex/raw/master/ web.png "Web Config")
+
+## Alternatives
 
 * [PyPlex](https://github.com/dalehamel/pyplex) - This doesn't work with the new Plex app on iOS, at least for me.  It also seems to be dead.
 * [RasPlex](http://rasplex.com/) - Some of the devs from PyPlex seem to have jumped ship and are now trying to get Plex HT to run on the RaspberryPi.
