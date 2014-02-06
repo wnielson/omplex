@@ -64,7 +64,7 @@ in the near future and all configuration will be done via a web browser.  Curren
 the configuration page, once you've started ``OMPLex`` at ``http://127.0.0.1:3000/``.  Replace the
 IP address with your Pi's actual IP address.  You should get a page like this:
 
-![Web Config](https://github.com/wnielson/omplex/raw/master/ web.png "Web Config")
+![Web Config](https://github.com/wnielson/omplex/raw/master/web.png "Web Config")
 
 ## Alternatives
 
