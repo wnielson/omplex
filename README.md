@@ -32,7 +32,6 @@ comes from the PlexGDM project.
 
 ## Installation
 
-
 OMPlex is written mainly in Python, so you will need a relatively recent
 2.x version--2.6 or 2.7 should work just fine.  The following Python libraries
 are also required:
@@ -50,6 +49,13 @@ just run:
 
 You'll be prompted for you MyPlex username and password.  You should now see
 "omplex" as a player from your Plex remote.
+
+### OSD
+
+I'm still working on better integration of the OSD, but for now you need to build it by hand.
+You'll need to install ``libjpeg`` and make sure you have the ``GLESv2`` library ``/opt/vc/lib/``.
+Go into the ``osd`` directory and type ``make``.  If everything goes well, you should now have
+a file ``libosd.so``.
 
 ## Alternatives
 
