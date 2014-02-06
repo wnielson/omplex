@@ -135,6 +135,11 @@ void init_osd()
 
 void destroy_osd()
 {
+    if (MAIN_OSD == NULL)
+    {
+        return;
+    }
+
     unloadfont(OpenSansBold.Glyphs, OpenSansBold.Count);
     unloadfont(OpenSansSemiBold.Glyphs, OpenSansSemiBold.Count);
 
@@ -146,13 +151,16 @@ void destroy_osd()
 
 void show_osd(int played, int duration, char* title)
 {
-    // Calling ``init_osd`` everytime seems wasteful, but it is needed to
-    // ensure that the OSD is visible.  The main issue is that if the player
-    // is stopped and then restarted, the graphics library needs to be
-    // reinitalized, otherwise the OSD is not drawn ontop of the video.
-    init_osd();
+    if (MAIN_OSD == NULL)
+    {
+        // Calling ``init_osd`` everytime seems wasteful, but it is needed to
+        // ensure that the OSD is visible.  The main issue is that if the player
+        // is stopped and then restarted, the graphics library needs to be
+        // reinitalized, otherwise the OSD is not drawn ontop of the video.
+        init_osd();
+    }
 
-    OSD* osd        = MAIN_OSD;
+    OSD* osd = MAIN_OSD;
 
     if (played > duration)
     {
@@ -185,7 +193,7 @@ void show_osd(int played, int duration, char* title)
     Text(46, 162, osd->time_now, OpenSansSemiBold, 14);
 
     // End time
-    get_time(osd->time_end, osd->duration);
+    get_time(osd->time_end, osd->duration-osd->played);
     Text(osd->width-(46*2)-44, 162, osd->time_end, OpenSansSemiBold, 14);
 
     // Title text
@@ -227,8 +235,13 @@ void show_osd(int played, int duration, char* title)
 
 void hide_osd()
 {
-    Start(MAIN_OSD->width, MAIN_OSD->height);
-    End();
+    if (MAIN_OSD == NULL)
+    {
+        return;
+    }
+
+    //Start(MAIN_OSD->width, MAIN_OSD->height);
+    //End();
 
     destroy_osd();
 };

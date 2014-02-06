@@ -527,7 +527,12 @@ void Start(int width, int height) {
 
 // End checks for errors, and renders to the display
 void End() {
-	assert(vgGetError() == VG_NO_ERROR);
+	int error = vgGetError();
+        if (error != VG_NO_ERROR) {
+            printf("vgErrorCode = %d\n", error);
+            return;
+        }
+
 	eglSwapBuffers(state->display, state->surface);
 	assert(eglGetError() == EGL_SUCCESS);
 }

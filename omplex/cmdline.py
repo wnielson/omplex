@@ -7,6 +7,7 @@ import time
 from client import HttpServer
 from conf import settings
 from gdm import gdm
+from osd import osd
 from timeline import timelineManager
 
 __author__ = "Weston Nielson <wnielson@github>"
@@ -50,7 +51,9 @@ def main():
 
     gdm.discover()
 
-    server = HttpServer(queue, HTTP_PORT)
+    osd.start()
+
+    server = HttpServer(queue, int(settings.http_port))
     server.start()
 
     timelineManager.start()
@@ -62,6 +65,7 @@ def main():
         print ""
         log.info("Stopping services...")
     finally:
+        osd.stop()
         server.stop()
         timelineManager.stop()
         gdm.stop_all()

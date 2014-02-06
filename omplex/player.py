@@ -10,6 +10,7 @@ import re
 from threading import Thread, RLock
 from time import sleep
 
+from osd import osd
 from utils import synchronous, Timer
 
 # Scrobble progress to Plex server at most every 5 seconds
@@ -68,15 +69,28 @@ class PlayerManager(object):
 
         log.debug("PlayerManager::stop stopping playback of %s" % self.media)
 
+        osd.hide()
+
         self.player.stop()
 
         self.player = None
         self.media  = None
 
     @synchronous('lock')
+    def get_volume(self):
+        if self.player:
+            return self.player._volume
+
+    @synchronous('lock')
     def toggle_pause(self):
         if self.player:
             self.player.toggle_pause()
+            if self.is_paused() and self.media:
+                log.debug("PlayerManager::toggle_pause showing OSD")
+                osd.show(int(self.player.position), int(int(self.media.get_duration())*1e-3), self.media.get_video_attr("title"))
+            else:
+                log.debug("PlayerManager::toggle_pause hiding OSD")
+                osd.hide()
 
     @synchronous('lock')
     def seek(self, offset):
@@ -84,6 +98,7 @@ class PlayerManager(object):
         Seek to ``offset`` seconds
         """
         if self.player:
+            osd.hide()
             self.player.seek(offset)
 
     @synchronous('lock')
@@ -122,7 +137,7 @@ class Player(object):
     _STATUS_REXP = re.compile(r"(M:|V :)\s*([\d.]+).*")
     _DONE_REXP = re.compile(r"have a nice day.*")
 
-    _LAUNCH_CMD = _OMXPLAYER_EXECUTABLE + " -o hdmi -s %s %s"
+    _LAUNCH_CMD = _OMXPLAYER_EXECUTABLE + " -o local -s %s %s"
 
     _PAUSE_CMD = 'p'
     _TOGGLE_SUB_CMD = 's'
