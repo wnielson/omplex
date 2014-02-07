@@ -76,7 +76,12 @@ class PlayerManager(object):
             log.debug("PlayerManager::play disabling subtitles")
             args.append("--subtitles /dev/null")
 
-        self.player = Player(mediafile=media.get_media_url(part), args=args, start_playback=True)
+        url = media.get_media_url(part)
+        if not url:
+            log.error("PlayerManager::play no URL found")
+            return
+            
+        self.player = Player(mediafile=url, args=args, start_playback=True, finished_callback=self.finished_callback)
         self.media  = media
 
     @synchronous('lock')
