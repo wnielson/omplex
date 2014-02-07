@@ -37,7 +37,7 @@ class Media(object):
         if not hasattr(self, "_title"):
             media_type = self.tree.find('.Video').get('type')
 
-            if self.tree.find('.').get("identifier"):
+            if self.tree.find('.').get("identifier") != "com.plexapp.plugins.library":
                 # Plugin?
                 title =  self.tree.find('./Video').get('sourceTitle') or ""
                 if title:
