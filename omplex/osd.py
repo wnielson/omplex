@@ -1,20 +1,29 @@
 import ctypes
 import logging
+import os
 import Queue
 import threading
 
 log = logging.getLogger('osd')
 
 class OSD(threading.Thread):
+    LIB_NAME = "libosd.so"
+    LIB_SEARCH_DIRS = (
+        "./",
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "../"),
+    )
+
     def __init__(self):
         self.halt = False
         self.queue = Queue.Queue()
-
-        try:
-            self.__lib = ctypes.cdll.LoadLibrary("./libosd.so")
-        except:
-            log.info("Unable to load libosd")
-            self.__lib = None
+        for path in self.LIB_SEARCH_DIRS:
+            try:
+                self.__lib = ctypes.cdll.LoadLibrary(os.path.join(path, self.LIB_NAME))
+                log.debug("OSD::__init__ loaded libosd from %s" % path)
+                break
+            except:
+                log.info("OSD::__init__ Unable to load libosd from %s" % path)
+                self.__lib = None
 
         threading.Thread.__init__(self)
     
@@ -43,3 +52,4 @@ class OSD(threading.Thread):
         self.queue.put(('hide_osd', []))
 
 osd = OSD()
+
