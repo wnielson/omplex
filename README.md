@@ -11,8 +11,6 @@ following exceptions:
 2. No channel support (haven't tested)
 3. No support for the web-based remote at plex.tv/web
 4. Only videos are supported (no picture or music support)
-5. No subtitle support
-6. No audio stream selection
 
 All of these things are on the TODO list.
 
@@ -32,30 +30,44 @@ comes from the PlexGDM project.
 
 ## Installation
 
+
 OMPlex is written mainly in Python, so you will need a relatively recent
-2.x version--2.6 or 2.7 should work just fine.  The following Python libraries
-are also required:
+2.x version--2.6 or 2.7 should work just fine.  To install just do the
+usual:
+
+    python setup.py install
+
+The following Python libraries are also required and will be installed for
+you automatically if you use the setup script:
 
 * [Requests](https://pypi.python.org/pypi/requests/)
 * [pexpect](https://pypi.python.org/pypi/pexpect/)
 
 You'll also need OMXPlayer.  You can find new builds for Debian-based distros
-here: http://omxplayer.sconde.net/
+[here](http://omxplayer.sconde.net/).
 
-This will be packaged up more cleanly once it matures, but in the meantime,
-just run:
+If you have a Raspbian-based distro, you should have an ``/opt/vc/lib``
+directory, if you don't then the OSD will not build correctly.
 
-    python cmdline.py
+Once you've installed ``OMPlex`` you can launch it::
+
+    omplex
 
 You'll be prompted for you MyPlex username and password.  You should now see
 "omplex" as a player from your Plex remote.
 
+Currently the ``omplex`` command takes no arguments but this will change in
+the near future.  For the time being I suggest you start a new ``screen`` and
+run ``omplex`` from in there.  You will see a log of logging information printed
+to the screen.  If you encounter errors, these messages can be helpful to try to
+debug.
+
 ### OSD
 
-I'm still working on better integration of the OSD, but for now you need to build it by hand.
-You'll need to install ``libjpeg`` and make sure you have the ``GLESv2`` library ``/opt/vc/lib/``.
-Go into the ``osd`` directory and type ``make``.  If everything goes well, you should now have
-a file ``libosd.so``.
+If you use the setup script mentioned above and you have the required libaries
+then the OSD should build and install just fine.  If there are errors, you can
+try to build the OSD manually by going into the ``osd`` directory and typing
+``make``.
 
 ## Configuration
 
@@ -65,6 +77,12 @@ the configuration page, once you've started ``OMPLex`` at ``http://127.0.0.1:300
 IP address with your Pi's actual IP address.  You should get a page like this:
 
 ![Web Config](https://github.com/wnielson/omplex/raw/master/web.png "Web Config")
+
+### Streams and Subtitles
+
+``OMPlex`` will do its best to use the streams that you've selected on your player.  In the future
+the OSD will contain buttons to allow you to toggle the streams while the video is playing, but for
+now you must select the streams you want before you hit play on your remote.
 
 ## Alternatives
 
