@@ -206,6 +206,7 @@ class HttpHandler(SimpleHTTPRequestHandler):
                 myplex_username = postvars.get("myplex_username")[0]
                 myplex_password = postvars.get("myplex_password")[0]
                 player_name     = postvars.get("player_name")[0]
+                audio_output    = postvars.get("audio_output")[0]
             except:
                 response.update({
                     "success": False,
@@ -223,6 +224,7 @@ class HttpHandler(SimpleHTTPRequestHandler):
                 settings.myplex_username = myplex_username
                 settings.myplex_password = myplex_password
                 settings.player_name     = player_name
+                settings.audio_output    = audio_output
 
             data = json.dumps(response)
 

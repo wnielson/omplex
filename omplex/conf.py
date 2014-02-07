@@ -20,6 +20,7 @@ class Settings(object):
         "player_name":      "omplex",
         "plex_server":      "",
         "http_port":        "3000",
+        "audio_output":     "hdmi",
         "client_uuid":      str(uuid.uuid4())
     }
 

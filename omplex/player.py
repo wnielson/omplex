@@ -10,6 +10,7 @@ import re
 from threading import Thread, RLock
 from time import sleep
 
+from conf import settings
 from osd import osd
 from utils import synchronous, Timer
 
@@ -59,6 +60,20 @@ class PlayerManager(object):
         if offset > 0:
             args.extend(("-l", str(offset)))
 
+        audio_idx = media.get_audio_idx()
+        if audio_idx is not None:
+            log.debug("PlayerManager::play selecting audio stream index=%s" % audio_idx)
+            args.append("-n %s" % audio_idx)
+
+        sub_idx = media.get_subtitle_idx()
+        if sub_idx is not None:
+            log.debug("PlayerManager::play selecting subtitle index=%s" % sub_idx)
+            args.append("-t %s" % sub_idx)
+        else:
+            # No subtitles -- this is pretty hacky
+            log.debug("PlayerManager::play disabling subtitles")
+            args.append("--subtitles /dev/null")
+
         self.player = Player(mediafile=media.get_media_url(), args=args, start_playback=True)
         self.media  = media
 
@@ -87,7 +102,7 @@ class PlayerManager(object):
             self.player.toggle_pause()
             if self.is_paused() and self.media:
                 log.debug("PlayerManager::toggle_pause showing OSD")
-                osd.show(int(self.player.position), int(int(self.media.get_duration())*1e-3), self.media.get_video_attr("title"))
+                osd.show(int(self.player.position), int(int(self.media.get_duration())*1e-3), self.media.get_proper_title())
             else:
                 log.debug("PlayerManager::toggle_pause hiding OSD")
                 osd.hide()
@@ -137,7 +152,7 @@ class Player(object):
     _STATUS_REXP = re.compile(r"(M:|V :)\s*([\d.]+).*")
     _DONE_REXP = re.compile(r"have a nice day.*")
 
-    _LAUNCH_CMD = _OMXPLAYER_EXECUTABLE + " -o local -s %s %s"
+    _LAUNCH_CMD = _OMXPLAYER_EXECUTABLE + " -s %s %s"
 
     _PAUSE_CMD = 'p'
     _TOGGLE_SUB_CMD = 's'
@@ -166,9 +181,18 @@ class Player(object):
         if fullscreen and "-r" not in args:
             args.append("-r")
 
+        if "--no-osd" not in args:
+            args.append("--no-osd")
+
+        if "-o " not in args and "--adev" not in args:
+            adev = settings.audio_output
+            if adev in ["hdmi", "local", "both"]:
+                args.append("-o %s" % adev)
+
         self.args = args
             
         cmd = self._LAUNCH_CMD % (" ".join(self.args), mediafile)
+        log.debug("Player::__init__ launch command: %s" % cmd)
         
         self._process = pexpect.spawn(cmd)
 

@@ -48,6 +48,16 @@
               <input type="text" class="form-control" name="player_name" value="omplex">
             </div>
 
+            <div class="form-group">
+              <label for="audio_output">Audio Output</label>
+              <select id="audio_output" name="audio_output">
+                <option value="local">Analog</option>
+                <option value="hdmi">HDMI</option>
+                <option value="both">Both</option>
+             </select>
+             <p class="help-block">Default audio output device.</p>
+            </div>
+
             <div class="form-group ">
               <label class="control-label" for="input_FriendlyName_c">MyPlex Username</label>
               <input type="text" class="form-control" name="myplex_username" value="" placeholder="username">
@@ -116,7 +126,14 @@
         var form = $('form');
         $.each(data, function(key, value)
         {
-          form.find("input[name='"+key+"']").val(value);
+          input = form.find("input[name='"+key+"']");
+          if (input.length > 0) {
+              input.val(value);
+          } else {
+              select = form.find("select[name='"+key+"']");
+              select.find("option").removeAttr("selected");
+              select.find("option[value='"+value+"']").attr("selected", "true");
+          }
         });
       });
     };

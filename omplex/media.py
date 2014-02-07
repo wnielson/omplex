@@ -9,6 +9,8 @@ except:
 
 from conf import settings
 
+import pdb
+
 log = logging.getLogger('media')
 
 # http://192.168.0.12:32400/photo/:/transcode?url=http%3A%2F%2F127.0.0.1%3A32400%2F%3A%2Fresources%2Fvideo.png&width=75&height=75
@@ -25,6 +27,25 @@ class Media(object):
 
     def __str__(self):
         return self.path.path
+
+    def get_proper_title(self):
+        if not hasattr(self, "_title"):
+            media_type = self.tree.find('.Video').get('type')
+            if media_type == "movie":
+                title = self.tree.find('.Video').get("title")
+                year  = self.tree.find('.Video').get("year")
+                if year is not None:
+                    title = "%s (%s)" % (title, year)
+            elif media_type == "episode":
+                episode_name   = self.tree.find('.Video').get("title")
+                episode_number = int(self.tree.find('.Video').get("index"))
+                season_number  = int(self.tree.find('.Video').get("parentIndex"))
+                series_name    = self.tree.find('.Video').get("grandparentTitle")
+                title = "%s - %dx%.2d - %s" % (series_name, season_number, episode_number, episode_name)
+            else:
+                title = self.tree.find('.Video').get("title")
+            setattr(self, "_title", title)
+        return getattr(self, "_title")
 
     def _get_attribute(self, path, attr, default=None):
         el = self.tree.find(path)
@@ -98,6 +119,29 @@ class Media(object):
 
         return self.get_media_url()
 
+    def get_audio_idx(self):
+        """
+        Returns the index of the selected stream
+        """
+        match = False
+        for index, stream in enumerate(self.tree.findall("./Video/Media/Part/Stream[@streamType='2']") or []):
+            if stream.get('selected') == "1":
+                match = True
+                break
+
+        if match:
+            return index+1
+
+    def get_subtitle_idx(self):
+        match = False
+        for index, sub in enumerate(self.tree.findall("./Video/Media/Part/Stream[@streamType='3']") or []):
+            if sub.get('selected') == "1":
+                match = True
+                break
+
+        if match:
+            return index+1
+
     def get_duration(self):
         return self._get_attribute('./Video', 'duration')
 
@@ -142,3 +186,4 @@ class Media(object):
 
         self.played = self._safe_urlopen(url, data)
         return self.played
+
