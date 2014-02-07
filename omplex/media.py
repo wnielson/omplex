@@ -21,9 +21,14 @@ class Media(object):
         ``url`` should be a URL to the Plex XML media item.
         """
         self.path       = urlparse.urlparse(url)
-        self.tree       = et.parse(urllib.urlopen(self._get_plex_url(url)))
         self.server_url = self.path.scheme + "://" + self.path.netloc
         self.played     = False
+        
+        url = urlparse.urljoin(self.server_url, self.path.path)
+        qs  = urlparse.parse_qs(self.path.query)
+        for k, v in qs.items():
+            qs[k] = v[0]
+        self.tree = et.parse(urllib.urlopen(self._get_plex_url(url, qs)))
 
     def __str__(self):
         return self.path.path
@@ -87,8 +92,13 @@ class Media(object):
                 "X-Plex-Token": settings.myplex_token
             })
 
+        # Kinda ghetto...
+        sep = "?"
+        if sep in url:
+            sep = "&"
+
         if data:
-            url = "%s?%s" % (url, urllib.urlencode(data))
+            url = "%s%s%s" % (url, sep, urllib.urlencode(data))
 
         log.debug("Created URL: %s" % url)
 

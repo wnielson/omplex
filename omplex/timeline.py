@@ -123,8 +123,8 @@ class TimelineManager(threading.Thread):
             controllable.append("seekTo")
 
             # TODO: Only is player output is 'local' not 'hdmi'
-            controllable.append("volume")
-            options["volume"] = str(playerManager.get_volume() or 0)
+            #controllable.append("volume")
+            #options["volume"] = str(playerManager.get_volume() or 0)
 
             options["controllable"] = ",".join(controllable)
         else:

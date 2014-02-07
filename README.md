@@ -8,7 +8,7 @@ OMPlex is still quite rough around the edges, but it is useable, with the
 following exceptions:
 
 1. No transcoder support
-2. No channel support (haven't tested)
+2. Very basic channel support and only for supported media types
 3. No support for the web-based remote at plex.tv/web
 4. Only videos are supported (no picture or music support)
 

@@ -8,6 +8,7 @@ from client import HttpServer
 from conf import settings
 from gdm import gdm
 from osd import osd
+from player import playerManager
 from timeline import timelineManager
 
 __author__ = "Weston Nielson <wnielson@github>"
@@ -65,6 +66,7 @@ def main():
         print ""
         log.info("Stopping services...")
     finally:
+        playerManager.stop()
         osd.stop()
         server.stop()
         timelineManager.stop()

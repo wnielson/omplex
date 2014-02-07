@@ -148,7 +148,7 @@ class PlayerManager(object):
             log.debug("PlayerManager::finished_callback media is multi-part, checking for next part")
             if self.media.get_media_url(self.__part+1) is not None:
                 log.debug("PlayerManager::finished_callback starting next part")
-                self.play(media, part=self.__part+1)
+                self.play(self.media, part=self.__part+1)
                 return
 
             log.debug("PlayerManager::finished_callback no more parts found")
@@ -173,7 +173,7 @@ class Player(object):
     _STATUS_REXP = re.compile(r"(M:|V :)\s*([\d.]+).*")
     _DONE_REXP = re.compile(r"have a nice day.*")
 
-    _LAUNCH_CMD = _OMXPLAYER_EXECUTABLE + " -s %s %s"
+    _LAUNCH_CMD = _OMXPLAYER_EXECUTABLE + " -s %s \"%s\""
 
     _PAUSE_CMD = 'p'
     _TOGGLE_SUB_CMD = 's'
