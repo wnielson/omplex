@@ -22,7 +22,7 @@ displays basic inforation about the currenly playing video.  It mimicks the
 look and feel of Plex Home Theater's OSD, with some minor differences.  Below
 is an example of what the OSD looks like:
 
-![OSD](https://github.com/wnielson/omplex/raw/master/osd/screenshots/example1.jpg "OSD Screenshot")
+![OSD](https://github.com/wnielson/omplex/raw/master/osd/screenshots/example1.png "OSD Screenshot")
 
 Much of this work is based off of the (now defunct) PyPlex project, with the
 main difference being that OMPlex uses the (undocumented) "Timelines API".

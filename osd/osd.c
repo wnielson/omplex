@@ -71,8 +71,10 @@ void get_time(char* output, int seconds)
 
     if (seconds > 0)
     {
-        hour   += seconds/3600;
-        minute += (seconds-((seconds/3600)*3600))/60; // Yay integer math
+        // Compute "now" plus "seconds"
+        int total_seconds = hour*3600 + minute*60 + seconds;
+        hour   = total_seconds/3600;
+        minute = (total_seconds-(hour*3600))/60;
     }
 
     if (hour >= 12)
@@ -194,7 +196,7 @@ void show_osd(int played, int duration, char* title)
 
     // End time
     get_time(osd->time_end, osd->duration-osd->played);
-    Text(osd->width-(46*2)-44, 162, osd->time_end, OpenSansSemiBold, 14);
+    TextEnd(osd->width-46, 162, osd->time_end, OpenSansSemiBold, 14);
 
     // Title text
     Fill(255, 255, 255, 1);
@@ -222,12 +224,12 @@ void show_osd(int played, int duration, char* title)
     // Text shadow
     Fill(0, 0, 0, 1);
     Text(46-1, 102-1, osd->pos_now, OpenSansSemiBold, 12);
-    Text(osd->width-(46*2)-44-1, 102-1, osd->pos_end, OpenSansSemiBold, 12);
+    TextEnd(osd->width-46-1, 102-1, osd->pos_end, OpenSansSemiBold, 12);
 
     // Actual text
     Fill(255,255,255,1);
     Text(46, 102, osd->pos_now, OpenSansSemiBold, 12);
-    Text(osd->width-(46*2)-44, 102, osd->pos_end, OpenSansSemiBold, 12);
+    TextEnd(osd->width-46, 102, osd->pos_end, OpenSansSemiBold, 12);
     //////////////////////////////////////////////////////////////////////
 
     End();
@@ -244,4 +246,13 @@ void hide_osd()
     //End();
 
     destroy_osd();
+};
+
+int main()
+{
+    char tmp[5];
+    show_osd(1023, 2503, "Test Title(2014)");
+    gets(tmp);
+    hide_osd();
+    return 0;
 };
