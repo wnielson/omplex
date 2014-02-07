@@ -31,21 +31,42 @@ class Media(object):
     def get_proper_title(self):
         if not hasattr(self, "_title"):
             media_type = self.tree.find('.Video').get('type')
-            if media_type == "movie":
-                title = self.tree.find('.Video').get("title")
-                year  = self.tree.find('.Video').get("year")
-                if year is not None:
-                    title = "%s (%s)" % (title, year)
-            elif media_type == "episode":
-                episode_name   = self.tree.find('.Video').get("title")
-                episode_number = int(self.tree.find('.Video').get("index"))
-                season_number  = int(self.tree.find('.Video').get("parentIndex"))
-                series_name    = self.tree.find('.Video').get("grandparentTitle")
-                title = "%s - %dx%.2d - %s" % (series_name, season_number, episode_number, episode_name)
+
+            if self.tree.find('.').get("identifier"):
+                # Plugin?
+                title =  self.tree.find('./Video').get('sourceTitle') or ""
+                if title:
+                    title += " - "
+                title += self.tree.find('./Video').get('title') or ""
             else:
-                title = self.tree.find('.Video').get("title")
+                # Assume local media
+                if media_type == "movie":
+                    title = self.tree.find('.Video').get("title")
+                    year  = self.tree.find('.Video').get("year")
+                    if year is not None:
+                        title = "%s (%s)" % (title, year)
+                elif media_type == "episode":
+                    episode_name   = self.tree.find('.Video').get("title")
+                    episode_number = int(self.tree.find('.Video').get("index"))
+                    season_number  = int(self.tree.find('.Video').get("parentIndex"))
+                    series_name    = self.tree.find('.Video').get("grandparentTitle")
+                    title = "%s - %dx%.2d - %s" % (series_name, season_number, episode_number, episode_name)
+                else:
+                    title = self.tree.find('.Video').get("title")
             setattr(self, "_title", title)
         return getattr(self, "_title")
+
+    def is_multipart(self):
+        media_count = 0
+        part_count = 0
+        for media in self.tree.findall('./Video/Media'):
+            media_count += 1
+            for part in media.findall('./Part'):
+                part_count += 1
+
+        # If there is one "part" for every "media", then this isn't
+        # a multi-part item
+        return media_count != part_count
 
     def _get_attribute(self, path, attr, default=None):
         el = self.tree.find(path)
@@ -95,15 +116,18 @@ class Media(object):
         return getattr(self, "_machine_identifier", None)
 
 
-    def get_media_url(self):
+    def get_media_url(self, part_num=1):
         """
         Returns the URL to the original file.  If transcoding is required, this
         URL should not be used;  see ``get_transcode_url`` instead.
         """
-        part  = self.tree.find('./Video/Media/Part')
-        url   = urlparse.urljoin(self.server_url, part.get('key'))
+        if part_num < 1:
+            part_num = 1
 
-        return self._get_plex_url(url)
+        part = self.tree.find('./Video/Media[1]/Part[%d]' % int(part_num))
+        if part is not None:
+            url  = urlparse.urljoin(self.server_url, part.get('key'))
+            return self._get_plex_url(url)
 
     def get_transcode_url(self, extension='mkv', format='matroska',
                           video_codec='libx264', audio_codec=None,

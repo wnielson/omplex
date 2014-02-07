@@ -36,6 +36,7 @@ class PlayerManager(object):
         self.media       = None
         self.lock        = RLock()
         self.last_update = Timer()
+        self.__part      = 1
 
     @synchronous('lock')
     def update(self):
@@ -53,8 +54,9 @@ class PlayerManager(object):
                 self.last_update.restart()
 
     @synchronous('lock')
-    def play(self, media, offset=0):
+    def play(self, media, offset=0, part=1):
         self.stop()
+        self.__part = part
 
         args = []
         if offset > 0:
@@ -74,7 +76,7 @@ class PlayerManager(object):
             log.debug("PlayerManager::play disabling subtitles")
             args.append("--subtitles /dev/null")
 
-        self.player = Player(mediafile=media.get_media_url(), args=args, start_playback=True)
+        self.player = Player(mediafile=media.get_media_url(part), args=args, start_playback=True)
         self.media  = media
 
     @synchronous('lock')
@@ -132,6 +134,20 @@ class PlayerManager(object):
             return self.player._paused
         return False
 
+    @synchronous('lock')
+    def finished_callback(self):
+        if not self.media:
+            return
+        
+        if self.media.is_multipart():
+            log.debug("PlayerManager::finished_callback media is multi-part, checking for next part")
+            if self.media.get_media_url(self.__part+1) is not None:
+                log.debug("PlayerManager::finished_callback starting next part")
+                self.play(media, part=self.__part+1)
+                return
+
+            log.debug("PlayerManager::finished_callback no more parts found")
+
 
 _OMXPLAYER_EXECUTABLE = "/usr/bin/omxplayer"
 
@@ -175,7 +191,7 @@ class Player(object):
     FAST_SPEED = 1
     VFAST_SPEED = 2
 
-    def __init__(self, mediafile, args=[], start_playback=False, fullscreen=True):
+    def __init__(self, mediafile, args=[], start_playback=False, fullscreen=True, finished_callback=None):
         self.mediafile = mediafile
 
         if fullscreen and "-r" not in args:
@@ -189,6 +205,8 @@ class Player(object):
             if adev in ["hdmi", "local", "both"]:
                 args.append("-o %s" % adev)
 
+        
+        self.finished_callback = finished_callback
         self.args = args
             
         cmd = self._LAUNCH_CMD % (" ".join(self.args), mediafile)
@@ -244,7 +262,7 @@ class Player(object):
 
     def _get_position(self):
         
-        while True:            
+        while not self.finished:            
             index = self._process.expect([
                 self._STATUS_REXP,
                 pexpect.TIMEOUT,
@@ -256,6 +274,8 @@ class Player(object):
                 continue
             elif index in (2, 3): # EOF or finished
                 self.finished = True
+                if callable(self.finished_callback):
+                    self.finished_callback()
                 break
             elif index == 0:
                 self.position = float(self._process.match.group(2).strip()) / 1000000
@@ -283,6 +303,7 @@ class Player(object):
     def stop(self):
         self._process.send(self._QUIT_CMD)
         self._process.terminate(force=True)
+        self.finished = True
 
     def decrease_speed(self):
         """
