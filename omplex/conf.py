@@ -14,14 +14,16 @@ class Settings(object):
 
     _path = None
     _data = {
-        "myplex_username":  "",
-        "myplex_password":  "",
-        "myplex_token":     "",
-        "player_name":      "omplex",
-        "plex_server":      "",
-        "http_port":        "3000",
-        "audio_output":     "hdmi",
-        "client_uuid":      str(uuid.uuid4())
+        "myplex_username":      "",
+        "myplex_password":      "",
+        "myplex_token":         "",
+        "player_name":          "omplex",
+        "plex_server":          "",
+        "http_port":            "3000",
+        "audio_output":         "hdmi",
+        "audio_ac3passthrough": False,
+        "audio_dtspassthrough": False,
+        "client_uuid":          str(uuid.uuid4())
     }
 
     def __getattr__(self, name):

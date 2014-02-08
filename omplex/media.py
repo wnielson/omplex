@@ -2,6 +2,8 @@ import logging
 import urllib
 import urlparse
 
+from __init__ import __version__
+
 try:
     import xml.etree.cElementTree as et
 except:
@@ -92,6 +94,19 @@ class Media(object):
                 "X-Plex-Token": settings.myplex_token
             })
 
+        data.update({
+            "X-Plex-Version":           __version__,
+            "X-Plex-Client-Identifier": settings.client_uuid,
+            "X-Plex-Provides":          "player",
+            "X-Plex-Device-Name":       settings.player_name,
+            "X-Plex-Model":             "RaspberryPI",
+            "X-Plex-Device":            "RaspberryPI",
+
+            # Lies
+            "X-Plex-Product":           "Plex Home Theater",
+            "X-Plex-Platform":          "Plex Home Theater"
+        })
+
         # Kinda ghetto...
         sep = "?"
         if sep in url:
@@ -139,19 +154,47 @@ class Media(object):
             url  = urlparse.urljoin(self.server_url, part.get('key'))
             return self._get_plex_url(url)
 
-    def get_transcode_url(self, extension='mkv', format='matroska',
-                          video_codec='libx264', audio_codec=None,
-                          continue_play=False,   continue_time=None,
-                          video_width='1280',    video_height='720',
-                          video_bitrate=None,    direct_play=False):
+    def get_transcode_url(self, extension='mkv',    format='matroska',
+                          video_codec='libx264',    audio_codec=None,
+                          continue_play=False,      continue_time=None,
+                          video_width='1920',       video_height='1080',
+                          video_bitrate="20000",    video_quality=100,
+                          direct_play=True):
         """
         Returns the URL to use for the trancoded file.
         """
-        # TODO: Implment this
         if direct_play:
             return self.get_media_url()
 
-        return self.get_media_url()
+        url = "/video/:/transcode/universal/start.m3u8"
+        args = {
+            "path":             self._get_attribute('./Video', 'key'),
+            "session":          settings.client_uuid,
+            "protocol":         "hls",
+            "directPlay":       "0",
+            "directStream":     "1",
+            "fastSeek":         "1",
+            "maxVideoBitrate":  str(video_bitrate),
+            "videoQuality":     str(video_quality),
+            "videoResolution":  "%sx%s" % (video_width,video_height),
+            #"skipSubtitles":    "1",
+        }
+
+        audio_formats = []
+        protocols = "protocols=shoutcast,http-video;videoDecoders=h264{profile:high&resolution:1080&level:51};audioDecoders=mp3,aac"
+        if settings.audio_ac3passthrough:
+            audio_formats.append("add-transcode-target-audio-codec(type=videoProfile&context=streaming&protocol=hls&audioCodec=ac3)")
+            audio_formats.append("add-transcode-target-audio-codec(type=videoProfile&context=streaming&protocol=hls&audioCodec=eac3)")
+            protocols += ",ac3{bitrate:800000&channels:8}"
+        if settings.audio_dtspassthrough:
+            audio_formats.append("add-transcode-target-audio-codec(type=videoProfile&context=streaming&protocol=hls&audioCodec=dca)")
+            protocols += ",dts{bitrate:800000&channels:8}"
+
+        if audio_formats:
+            args["X-Plex-Client-Profile-Extra"] = "+".join(audio_formats)
+            args["X-Plex-Client-Capabilities"]  = protocols 
+
+        return self._get_plex_url(urlparse.urljoin(self.server_url, url), args)
 
     def get_audio_idx(self):
         """
