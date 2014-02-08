@@ -352,6 +352,12 @@ class HttpHandler(SimpleHTTPRequestHandler):
         log.debug("HttpHandler::seekTo offset %ss" % offset)
         playerManager.seek(offset)
 
+    def set(self, path, arguments):
+        if arguments.has_key("volume"):
+            volume = arguments["volume"]
+            log.debug("HttpHandler::set settings volume to %s" % volume)
+            playerManager.set_volume(float(volume)/100.0)
+
 
 class HttpSocketServer(ThreadingMixIn, HTTPServer):
     allow_reuse_address = True
