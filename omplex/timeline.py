@@ -122,9 +122,9 @@ class TimelineManager(threading.Thread):
             controllable.append("audioStream")
             controllable.append("seekTo")
 
-            # TODO: Only is player output is 'local' not 'hdmi'
-            #controllable.append("volume")
-            #options["volume"] = str(playerManager.get_volume() or 0)
+            if settings.audio_output != "hdmi":
+                controllable.append("volume")
+                options["volume"] = str(playerManager.get_volume(percent=True)*100 or 0)
 
             options["controllable"] = ",".join(controllable)
         else:

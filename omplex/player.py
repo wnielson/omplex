@@ -65,16 +65,16 @@ class PlayerManager(object):
         audio_idx = media.get_audio_idx()
         if audio_idx is not None:
             log.debug("PlayerManager::play selecting audio stream index=%s" % audio_idx)
-            args.append("-n %s" % audio_idx)
+            args.extend(["-n", audio_idx])
 
         sub_idx = media.get_subtitle_idx()
         if sub_idx is not None:
             log.debug("PlayerManager::play selecting subtitle index=%s" % sub_idx)
-            args.append("-t %s" % sub_idx)
+            args.extend(["-t", sub_idx])
         else:
             # No subtitles -- this is pretty hacky
             log.debug("PlayerManager::play disabling subtitles")
-            args.append("--subtitles /dev/null")
+            args.extend(["--subtitles", "/dev/null"])
 
         url = media.get_media_url(part)
         if not url:
@@ -99,9 +99,11 @@ class PlayerManager(object):
         self.media  = None
 
     @synchronous('lock')
-    def get_volume(self):
+    def get_volume(self, percent=False):
         if self.player:
-            return self.player._volume
+            if not percent:
+                return self.player._volume
+            return self.player._VOLUME_STEPS.index(self.player._volume)/float(len(self.player._VOLUME_STEPS))
 
     @synchronous('lock')
     def toggle_pause(self):
@@ -122,6 +124,11 @@ class PlayerManager(object):
         if self.player:
             osd.hide()
             self.player.seek(offset)
+
+    @synchronous('lock')
+    def set_volume(self, pct):
+        if self.player:
+            self.player.set_volume(pct)
 
     @synchronous('lock')
     def get_state(self):
@@ -187,7 +194,10 @@ class Player(object):
     _SEEK_BACKWARD_600_CMD = "\033[B" # key down
     _SEEK_FORWARD_600_CMD = "\033[A" # key up
 
-    _VOLUME_INCREMENT = 0.5 # Volume increment used by OMXPlayer in dB
+    _VOLUME_INCREMENT   = 3.0 # Volume increment used by OMXPlayer in dB
+    _VOLUME_MAX         = 21
+    _VOLUME_MIN         = -39
+    _VOLUME_STEPS       = range(_VOLUME_MIN,_VOLUME_MAX, int(_VOLUME_INCREMENT))
 
     # Supported speeds.
     # OMXPlayer supports a small number of different speeds.
@@ -205,16 +215,16 @@ class Player(object):
         if "--no-osd" not in args:
             args.append("--no-osd")
 
-        if "-o " not in args and "--adev" not in args:
+        if "-o" not in args and "--adev" not in args:
             adev = settings.audio_output
             if adev in ["hdmi", "local", "both"]:
-                args.append("-o %s" % adev)
+                args.extend(["-o", adev])
 
         
         self.finished_callback = finished_callback
         self.args = args
             
-        cmd = self._LAUNCH_CMD % (" ".join(self.args), mediafile)
+        cmd = self._LAUNCH_CMD % (" ".join([str(s) for s in self.args]), mediafile)
         log.debug("Player::__init__ launch command: %s" % cmd)
         
         self._process = pexpect.spawn(cmd)
@@ -255,19 +265,20 @@ class Player(object):
         #    self.current_volume = 0.0
 
         self.finished = False
+        self.stopped  = False
         self.position = 0
 
         self._position_thread = Thread(target=self._get_position)
         self._position_thread.start()
 
         if start_playback:
-            self.toggle_pause()
-        self.toggle_subtitles()
+            self.play()
+        #self.toggle_subtitles()
         
 
     def _get_position(self):
         
-        while not self.finished:            
+        while not self.finished or not self.stopped:            
             index = self._process.expect([
                 self._STATUS_REXP,
                 pexpect.TIMEOUT,
@@ -278,9 +289,14 @@ class Player(object):
             if index == 1: # on timeout, keep going
                 continue
             elif index in (2, 3): # EOF or finished
-                self.finished = True
-                if callable(self.finished_callback):
-                    self.finished_callback()
+                if not self.stopped:
+                    log.debug("Player::_get_position player reached end of video")
+                    self.finished = True
+                    if callable(self.finished_callback):
+                        # Only fire the callback if the video ended normally and
+                        # was **not** stopped
+                        log.debug("Player::_get_position firing callback")
+                        self.finished_callback()
                 break
             elif index == 0:
                 self.position = float(self._process.match.group(2).strip()) / 1000000
@@ -308,7 +324,7 @@ class Player(object):
     def stop(self):
         self._process.send(self._QUIT_CMD)
         self._process.terminate(force=True)
-        self.finished = True
+        self.stopped = True
 
     def decrease_speed(self):
         """
@@ -350,23 +366,39 @@ class Player(object):
     def set_chapter(self, chapter_idx):
         raise NotImplementedError
 
-    def set_volume(self, volume):
+    def set_volume(self, pct):
         """
-        Set volume to `volume` dB.
+        Set volume to ``pct`` which should be a percentage:
+            0 = _VOLUME_MIN
+            1 = _VOLUME_MAX
         """
-        log.info("Setting volume = %s" % volume)
+        pct = float(pct)
+        if pct > 1 or pct < 0:
+            log.error("Invalid volume; must be between 0 and 1")
+            return
 
-        volume_change_db = volume - self._volume
-        if volume_change_db != 0:
-            changes = int( round( volume_change_db / self._VOLUME_INCREMENT ) )
-            if changes > 0:
-                for i in range(1,changes):
-                    self.increase_volume()
-            else:
-                for i in range(1,-changes):
-                    self.decrease_volume()
-                    
-        self._volume = volume
+        volume_range   = self._VOLUME_MAX - self._VOLUME_MIN
+        target_volume  = volume_range * pct
+        target_volume -= target_volume % 3
+        target_volume += self._VOLUME_MIN
+        volume_index   = self._VOLUME_STEPS.index(self._volume)
+
+        if target_volume == self._volume:
+            return
+
+        log.info("Setting volume to %.2f%% (%d dB)" % (pct, target_volume))
+
+        if target_volume > self._volume:
+            for i in self._VOLUME_STEPS[volume_index+1:]:
+                if i > target_volume:
+                    break
+                self.increase_volume()
+        else:
+            for i in reversed(self._VOLUME_STEPS[:volume_index]):
+                if i < target_volume:
+                    break
+                self.decrease_volume()
+        log.info("Volume set to %s dB" % self._volume)
 
     def seek(self, offset):
         """
@@ -463,3 +495,4 @@ class Player(object):
         self._process.send(self._INCREASE_VOLUME_CMD)
 
 playerManager = PlayerManager()
+
