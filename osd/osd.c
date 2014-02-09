@@ -195,8 +195,11 @@ void show_osd(int played, int duration, char* title)
     Text(46, 162, osd->time_now, OpenSansSemiBold, 14);
 
     // End time
-    get_time(osd->time_end, osd->duration-osd->played);
-    TextEnd(osd->width-46, 162, osd->time_end, OpenSansSemiBold, 14);
+    if (duration > 0)
+    {
+        get_time(osd->time_end, osd->duration-osd->played);
+        TextEnd(osd->width-46, 162, osd->time_end, OpenSansSemiBold, 14);
+    }
 
     // Title text
     Fill(255, 255, 255, 1);
@@ -209,27 +212,30 @@ void show_osd(int played, int duration, char* title)
     ///////////////////////////////////////////////////////////////////////////
     // Progress Bar
     ///////////////////////////////////////////////////////////////////////////
-    int   pbar_width = osd->width-288;
-    float pct_player = (float)played/duration;
-    Fill(255, 255, 255, 0.2);                               // Transparent bg
-    Roundrect(142, 102, pbar_width, 12, 10, 10);            // Centered
+    if (duration > 0)
+    {
+        int   pbar_width = osd->width-288;
+        float pct_player = (float)played/duration;
+        Fill(255, 255, 255, 0.2);                               // Transparent bg
+        Roundrect(142, 102, pbar_width, 12, 10, 10);            // Centered
 
-    Fill(209, 125, 30, 1);                                  // Orange bar (progress)
-    Roundrect(142, 102, pbar_width*pct_player, 12, 10, 10); // Left justified
+        Fill(209, 125, 30, 1);                                  // Orange bar (progress)
+        Roundrect(142, 102, pbar_width*pct_player, 12, 10, 10); // Left justified
 
-    // Progress text
-    seconds_to_str(osd->pos_now, osd->played);
-    seconds_to_str(osd->pos_end, osd->duration-osd->played);
+        // Progress text
+        seconds_to_str(osd->pos_now, osd->played);
+        seconds_to_str(osd->pos_end, osd->duration-osd->played);
 
-    // Text shadow
-    Fill(0, 0, 0, 1);
-    Text(46-1, 102-1, osd->pos_now, OpenSansSemiBold, 12);
-    TextEnd(osd->width-46-1, 102-1, osd->pos_end, OpenSansSemiBold, 12);
+        // Text shadow
+        Fill(0, 0, 0, 1);
+        Text(46-1, 102-1, osd->pos_now, OpenSansSemiBold, 12);
+        TextEnd(osd->width-46-1, 102-1, osd->pos_end, OpenSansSemiBold, 12);
 
-    // Actual text
-    Fill(255,255,255,1);
-    Text(46, 102, osd->pos_now, OpenSansSemiBold, 12);
-    TextEnd(osd->width-46, 102, osd->pos_end, OpenSansSemiBold, 12);
+        // Actual text
+        Fill(255,255,255,1);
+        Text(46, 102, osd->pos_now, OpenSansSemiBold, 12);
+        TextEnd(osd->width-46, 102, osd->pos_end, OpenSansSemiBold, 12);
+    }
     //////////////////////////////////////////////////////////////////////
 
     End();

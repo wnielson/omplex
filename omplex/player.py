@@ -112,7 +112,11 @@ class PlayerManager(object):
             self._player.toggle_pause()
             if self.is_paused() and self._video:
                 log.debug("PlayerManager::toggle_pause showing OSD")
-                osd.show(int(self._player.position), int(int(self._video.get_duration())*1e-3), self._video.get_proper_title())
+                try:
+                    duration = int(int(self._video.get_duration())*1e-3)
+                except:
+                    duration = 0
+                osd.show(int(self._player.position), duration, self._video.get_proper_title())
             else:
                 log.debug("PlayerManager::toggle_pause hiding OSD")
                 osd.hide()
