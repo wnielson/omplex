@@ -98,11 +98,12 @@ class TimelineManager(threading.Thread):
         }
         controllable = []
 
-        media  = playerManager._video.parent
         video  = playerManager._video
         player = playerManager._player
 
-        if media and video and player:
+        if video and player:
+            media = playerManager._video.parent
+
             options["location"]          = "fullScreenVideo"
 
             options["time"]              = player.position * 1e3

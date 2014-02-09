@@ -35,16 +35,16 @@ class PlayerManager(object):
         self._player      = None
         self._video       = None
         self._lock        = RLock()
-        self._last_update = Timer()
+        self.last_update = Timer()
 
         self.__part      = 1
 
-    @synchronous('lock')
+    @synchronous('_lock')
     def update(self):
         if self._video and self._player:
             if self.last_update.elapsed() > SCROBBLE_INTERVAL:
                 if not self._video.played:
-                    position = self.player.position * 1e3   # In ms
+                    position = self._player.position * 1e3   # In ms
                     duration = self._video.get_duration()
                     if float(position)/float(duration)  >= COMPLETE_PERCENT:
                         log.info("PlayerManager::update setting media as watched")
@@ -54,7 +54,7 @@ class PlayerManager(object):
                         self._video.update_position(position)
                 self.last_update.restart()
 
-    @synchronous('lock')
+    @synchronous('_lock')
     def play(self, video, offset=0):
         self.stop()
 
@@ -85,7 +85,7 @@ class PlayerManager(object):
         self._player = Player(mediafile=url, args=args, start_playback=True, finished_callback=self.finished_callback)
         self._video  = video
 
-    @synchronous('lock')
+    @synchronous('_lock')
     def stop(self):
         if not self._video or not self._player:
             return
@@ -99,14 +99,14 @@ class PlayerManager(object):
         self._player = None
         self._video  = None
 
-    @synchronous('lock')
+    @synchronous('_lock')
     def get_volume(self, percent=False):
         if self._player:
             if not percent:
                 return self._player._volume
             return self._player._VOLUME_STEPS.index(self._player._volume)/float(len(self._player._VOLUME_STEPS))
 
-    @synchronous('lock')
+    @synchronous('_lock')
     def toggle_pause(self):
         if self._player:
             self._player.toggle_pause()
@@ -117,7 +117,7 @@ class PlayerManager(object):
                 log.debug("PlayerManager::toggle_pause hiding OSD")
                 osd.hide()
 
-    @synchronous('lock')
+    @synchronous('_lock')
     def seek(self, offset):
         """
         Seek to ``offset`` seconds
@@ -126,12 +126,12 @@ class PlayerManager(object):
             osd.hide()
             self._player.seek(offset)
 
-    @synchronous('lock')
+    @synchronous('_lock')
     def set_volume(self, pct):
         if self._player:
             self._player.set_volume(pct)
 
-    @synchronous('lock')
+    @synchronous('_lock')
     def get_state(self):
         if not self._player:
             return "stopped"
@@ -141,13 +141,13 @@ class PlayerManager(object):
 
         return "playing"
     
-    @synchronous('lock')
+    @synchronous('_lock')
     def is_paused(self):
         if self._player:
             return self._player._paused
         return False
 
-    @synchronous('lock')
+    @synchronous('_lock')
     def finished_callback(self):
         if not self._video:
             return
@@ -163,7 +163,7 @@ class PlayerManager(object):
 
             log.debug("PlayerManager::finished_callback no more parts found")
 
-    @synchronous('lock')
+    @synchronous('_lock')
     def get_video_attr(self, attr, default=None):
         if self._video:
             return self._video.get_video_attr(attr, default)

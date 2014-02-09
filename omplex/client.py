@@ -332,9 +332,11 @@ class HttpHandler(SimpleHTTPRequestHandler):
 
         log.debug("HttpHandler::playMedia %s" % media)
 
-        playerManager.play(media, offset)
-
-        timelineManager.SendTimelineToSubscribers()
+        # TODO: Select video, media and part here based off user settings
+        video = media.get_video(0)
+        if video:
+            playerManager.play(video, offset)
+            timelineManager.SendTimelineToSubscribers()
 
     def stop(self, path, arguments):
         playerManager.stop()
