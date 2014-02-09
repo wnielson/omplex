@@ -112,12 +112,23 @@ class Video(object):
             setattr(self, "_title", title)
         return getattr(self, "_title")
 
-    def get_playback_url(self, direct_play=True, 
-                         video_height=1080,     video_width=1920,
-                         video_bitrate=20000,   video_quality=100):
+    def is_transcode_suggested(self):
+        if self._part_node:
+            if self._part_node.get("container") == "mov":
+                log.info("Video::is_transcode_suggested part container is mov, suggesting transcode")
+                return True
+        return False
+
+    def get_playback_url(self, direct_play=None, offset=0,
+                         video_height=1080,      video_width=1920,
+                         video_bitrate=20000,    video_quality=100):
         """
         Returns the URL to use for the trancoded file.
         """
+        if direct_play is None:
+            # See if transcoding is suggested
+            direct_play = not self.is_transcode_suggested()
+
         if direct_play:
             if not self._part_node:
                 return
@@ -137,11 +148,12 @@ class Video(object):
             "videoResolution":  "%sx%s" % (video_width,video_height),
             "mediaIndex":       self._media or 0,
             "partIndex":        self._part or 0,
+            "offset":           offset,
             #"skipSubtitles":    "1",
         }
 
         audio_formats = []
-        protocols = "protocols=shoutcast,http-video;videoDecoders=h264{profile:high&resolution:1080&level:51};audioDecoders=mp3,aac"
+        protocols = "protocols=http-live-streaming,http-mp4-streaming,http-mp4-video,http-mp4-video-720p,http-streaming-video,http-streaming-video-720p;videoDecoders=mpeg4,h264{profile:high&resolution:1080&level:51};audioDecoders=mp3,aac{channels:8}"
         if settings.audio_ac3passthrough:
             audio_formats.append("add-transcode-target-audio-codec(type=videoProfile&context=streaming&protocol=hls&audioCodec=ac3)")
             audio_formats.append("add-transcode-target-audio-codec(type=videoProfile&context=streaming&protocol=hls&audioCodec=eac3)")
@@ -152,9 +164,21 @@ class Video(object):
 
         if audio_formats:
             args["X-Plex-Client-Profile-Extra"] = "+".join(audio_formats)
-            args["X-Plex-Client-Capabilities"]  = protocols 
+            args["X-Plex-Client-Capabilities"]  = protocols
 
-        return get_plex_url(urlparse.urljoin(self.parent.server_url, url), args)
+        # OMXPlayer seems to have an issue playing the "start.m3u8" file
+        # directly, so we need to extract the index file
+        r = urllib.urlopen(get_plex_url(urlparse.urljoin(self.parent.server_url, url), args))
+        try:
+            for line in r.readlines():
+                line = line.strip()
+                if line and line[0] != "#" and line.find("m3u8") > 0:
+                    base = urlparse.urljoin(self.parent.server_url, "/video/:/transcode/universal/")
+                    return urlparse.urljoin(base, line)
+        except Exception, e:
+            log.error("Video::get_playback_url error processing response: %s" % str(e))
+
+        log.error("Video::get_playback_url couldn't generate playback url")
 
     def get_audio_idx(self):
         """

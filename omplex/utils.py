@@ -54,8 +54,8 @@ def get_plex_url(url, data={}):
         "X-Plex-Device":            "RaspberryPI",
 
         # Lies
-        "X-Plex-Product":           "Plex Home Theater",
-        "X-Plex-Platform":          "Plex Home Theater"
+        "X-Plex-Product":           "Popcorn Hour",
+        "X-Plex-Platform":          "Popcorn Hour"
     })
 
     # Kinda ghetto...
