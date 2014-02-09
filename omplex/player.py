@@ -32,42 +32,42 @@ class PlayerManager(object):
     ``media`` are thread safe.
     """
     def __init__(self):
-        self.player      = None
-        self.media       = None
-        self.lock        = RLock()
-        self.last_update = Timer()
+        self._player      = None
+        self._video       = None
+        self._lock        = RLock()
+        self._last_update = Timer()
+
         self.__part      = 1
 
     @synchronous('lock')
     def update(self):
-        if self.media and self.player:
+        if self._video and self._player:
             if self.last_update.elapsed() > SCROBBLE_INTERVAL:
-                if not self.media.played:
+                if not self._video.played:
                     position = self.player.position * 1e3   # In ms
-                    duration = self.media.get_duration()
+                    duration = self._video.get_duration()
                     if float(position)/float(duration)  >= COMPLETE_PERCENT:
                         log.info("PlayerManager::update setting media as watched")
-                        self.media.set_played()
+                        self._video.set_played()
                     else:
                         log.info("PlayerManager::update updating media position")
-                        self.media.update_position(position)
+                        self._video.update_position(position)
                 self.last_update.restart()
 
     @synchronous('lock')
-    def play(self, media, offset=0, part=1):
+    def play(self, video, offset=0):
         self.stop()
-        self.__part = part
 
         args = []
         if offset > 0:
             args.extend(("-l", str(offset)))
 
-        audio_idx = media.get_audio_idx()
+        audio_idx = video.get_audio_idx()
         if audio_idx is not None:
             log.debug("PlayerManager::play selecting audio stream index=%s" % audio_idx)
             args.extend(["-n", audio_idx])
 
-        sub_idx = media.get_subtitle_idx()
+        sub_idx = video.get_subtitle_idx()
         if sub_idx is not None:
             log.debug("PlayerManager::play selecting subtitle index=%s" % sub_idx)
             args.extend(["-t", sub_idx])
@@ -76,42 +76,43 @@ class PlayerManager(object):
             log.debug("PlayerManager::play disabling subtitles")
             args.extend(["--subtitles", "/dev/null"])
 
-        url = media.get_media_url(part)
+        # TODO: Check settings for transcode settings...
+        url = video.get_playback_url()
         if not url:
             log.error("PlayerManager::play no URL found")
             return
             
-        self.player = Player(mediafile=url, args=args, start_playback=True, finished_callback=self.finished_callback)
-        self.media  = media
+        self._player = Player(mediafile=url, args=args, start_playback=True, finished_callback=self.finished_callback)
+        self._video  = video
 
     @synchronous('lock')
     def stop(self):
-        if not self.media or not self.player:
+        if not self._video or not self._player:
             return
 
-        log.debug("PlayerManager::stop stopping playback of %s" % self.media)
+        log.debug("PlayerManager::stop stopping playback of %s" % self._video)
 
         osd.hide()
 
-        self.player.stop()
+        self._player.stop()
 
-        self.player = None
-        self.media  = None
+        self._player = None
+        self._video  = None
 
     @synchronous('lock')
     def get_volume(self, percent=False):
-        if self.player:
+        if self._player:
             if not percent:
-                return self.player._volume
-            return self.player._VOLUME_STEPS.index(self.player._volume)/float(len(self.player._VOLUME_STEPS))
+                return self._player._volume
+            return self._player._VOLUME_STEPS.index(self._player._volume)/float(len(self._player._VOLUME_STEPS))
 
     @synchronous('lock')
     def toggle_pause(self):
-        if self.player:
-            self.player.toggle_pause()
-            if self.is_paused() and self.media:
+        if self._player:
+            self._player.toggle_pause()
+            if self.is_paused() and self._video:
                 log.debug("PlayerManager::toggle_pause showing OSD")
-                osd.show(int(self.player.position), int(int(self.media.get_duration())*1e-3), self.media.get_proper_title())
+                osd.show(int(self._player.position), int(int(self._video.get_duration())*1e-3), self._video.get_proper_title())
             else:
                 log.debug("PlayerManager::toggle_pause hiding OSD")
                 osd.hide()
@@ -121,44 +122,52 @@ class PlayerManager(object):
         """
         Seek to ``offset`` seconds
         """
-        if self.player:
+        if self._player:
             osd.hide()
-            self.player.seek(offset)
+            self._player.seek(offset)
 
     @synchronous('lock')
     def set_volume(self, pct):
-        if self.player:
-            self.player.set_volume(pct)
+        if self._player:
+            self._player.set_volume(pct)
 
     @synchronous('lock')
     def get_state(self):
-        if not self.player:
+        if not self._player:
             return "stopped"
 
-        if self.player._paused:
+        if self._player._paused:
             return "paused"
 
         return "playing"
     
     @synchronous('lock')
     def is_paused(self):
-        if self.player:
-            return self.player._paused
+        if self._player:
+            return self._player._paused
         return False
 
     @synchronous('lock')
     def finished_callback(self):
-        if not self.media:
+        if not self._video:
             return
         
-        if self.media.is_multipart():
+        if self._video.is_multipart():
             log.debug("PlayerManager::finished_callback media is multi-part, checking for next part")
-            if self.media.get_media_url(self.__part+1) is not None:
+            # Try to select the next part
+            next_part = self.__part+1
+            if self._video.select_part(next_part):
+                self.__part = next_part
                 log.debug("PlayerManager::finished_callback starting next part")
-                self.play(self.media, part=self.__part+1)
-                return
+                self.play(self._video)
 
             log.debug("PlayerManager::finished_callback no more parts found")
+
+    @synchronous('lock')
+    def get_video_attr(self, attr, default=None):
+        if self._video:
+            return self._video.get_video_attr(attr, default)
+        return default
 
 
 _OMXPLAYER_EXECUTABLE = "/usr/bin/omxplayer"

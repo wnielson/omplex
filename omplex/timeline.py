@@ -37,7 +37,7 @@ class TimelineManager(threading.Thread):
 
     def run(self):
         while not self.halt:
-            if playerManager.player and playerManager.media and not playerManager.is_paused():
+            if playerManager._player and playerManager._video and not playerManager.is_paused():
                 self.SendTimelineToSubscribers()
                 playerManager.update()
             time.sleep(1)
@@ -98,20 +98,24 @@ class TimelineManager(threading.Thread):
         }
         controllable = []
 
-        if playerManager.media and playerManager.player:
+        media  = playerManager._video.parent
+        video  = playerManager._video
+        player = playerManager._player
+
+        if media and video and player:
             options["location"]          = "fullScreenVideo"
 
-            options["time"]              = playerManager.player.position * 1e3
+            options["time"]              = player.position * 1e3
             
-            options["ratingKey"]         = playerManager.media.get_video_attr("ratingKey")
-            options["key"]               = playerManager.media.get_video_attr("key")
-            options["containerKey"]      = playerManager.media.get_video_attr("key")
-            options["guid"]              = playerManager.media.get_video_attr("guid")
-            options["duration"]          = playerManager.media.get_video_attr("duration")
-            options["address"]           = playerManager.media.path.hostname
-            options["protocol"]          = playerManager.media.path.scheme
-            options["port"]              = playerManager.media.path.port
-            options["machineIdentifier"] = playerManager.media.get_machine_identifier()
+            options["ratingKey"]         = video.get_video_attr("ratingKey")
+            options["key"]               = video.get_video_attr("key")
+            options["containerKey"]      = video.get_video_attr("key")
+            options["guid"]              = video.get_video_attr("guid")
+            options["duration"]          = video.get_video_attr("duration")
+            options["address"]           = media.path.hostname
+            options["protocol"]          = media.path.scheme
+            options["port"]              = media.path.port
+            options["machineIdentifier"] = media.get_machine_identifier()
             options["seekRange"]         = "0-%s" % options["duration"]
 
             controllable.append("playPause")

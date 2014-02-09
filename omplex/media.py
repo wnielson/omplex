@@ -10,165 +10,123 @@ except:
     import xml.etree.ElementTree as et
 
 from conf import settings
-
-import pdb
+from utils import get_plex_url
 
 log = logging.getLogger('media')
 
 # http://192.168.0.12:32400/photo/:/transcode?url=http%3A%2F%2F127.0.0.1%3A32400%2F%3A%2Fresources%2Fvideo.png&width=75&height=75
 
-class Media(object):
-    def __init__(self, url):
-        """
-        ``url`` should be a URL to the Plex XML media item.
-        """
-        self.path       = urlparse.urlparse(url)
-        self.server_url = self.path.scheme + "://" + self.path.netloc
-        self.played     = False
-        
-        url = urlparse.urljoin(self.server_url, self.path.path)
-        qs  = urlparse.parse_qs(self.path.query)
-        for k, v in qs.items():
-            qs[k] = v[0]
-        self.tree = et.parse(urllib.urlopen(self._get_plex_url(url, qs)))
+class MediaItem(object):
+    pass
 
-    def __str__(self):
-        return self.path.path
+class Video(object):
+    def __init__(self, node, parent, media=0, part=0):
+        self.parent        = parent
+        self.node          = node
+        self.played        = False
+        self._media        = 0
+        self._media_node   = None
+        self._part         = 0
+        self._part_node    = None
+
+        if media:
+            self.select_media(media, part)
+
+        if not self._media_node:
+            self.select_best_media(part)
+
+    def select_best_media(self, part=0):
+        """
+        Nodes are accessed via XPath, which is technically 1-indexed, while
+        Plex is 0-indexed.
+        """
+        # Select the best media based on resolution
+        highest_res = 0
+        best_node   = 0
+        for i, node in enumerate(self.node.findall('./Media')):
+            res = int(node.get('height', 0))*int(node.get('height', 0))
+            if res > highest_res:
+                highest_res = res
+                best_node   = i
+
+        log.debug("Video::select_best_media selected media %s" % best_node)
+
+        self.select_media(best_node)
+
+    def select_media(self, media, part=0):
+        node = self.node.find('./Media[%s]' % (media+1))
+        if node:
+            self._media      = media
+            self._media_node = node
+            if self.select_part(part):
+                log.debug("Video::select_media selected media %d" % media)
+                return True
+
+        log.error("Video::select_media error selecting media %d" % media)
+        return False
+
+    def select_part(self, part):
+        if self._media_node is None:
+            return False
+
+        node = self._media_node.find('./Part[%s]' % (part+1))
+        if node:
+            self._part      = part
+            self._part_node = node
+            return True
+
+        log.error("Video::select_media error selecting part %s" % part)
+        return False
+
+    def is_multipart(self):
+        if not self._media_node:
+            return False
+        return len(self._media_node.findall("./Part",[])) > 1
 
     def get_proper_title(self):
         if not hasattr(self, "_title"):
-            media_type = self.tree.find('.Video').get('type')
+            media_type = self.node.get('type')
 
-            if self.tree.find('.').get("identifier") != "com.plexapp.plugins.library":
+            if self.parent.tree.find(".").get("identifier") != "com.plexapp.plugins.library":
                 # Plugin?
-                title =  self.tree.find('./Video').get('sourceTitle') or ""
+                title =  self.node.get('sourceTitle') or ""
                 if title:
                     title += " - "
-                title += self.tree.find('./Video').get('title') or ""
+                title += self.node.get('title') or ""
             else:
                 # Assume local media
                 if media_type == "movie":
-                    title = self.tree.find('.Video').get("title")
-                    year  = self.tree.find('.Video').get("year")
+                    title = self.node.get("title")
+                    year  = self.node.get("year")
                     if year is not None:
                         title = "%s (%s)" % (title, year)
                 elif media_type == "episode":
-                    episode_name   = self.tree.find('.Video').get("title")
-                    episode_number = int(self.tree.find('.Video').get("index"))
-                    season_number  = int(self.tree.find('.Video').get("parentIndex"))
-                    series_name    = self.tree.find('.Video').get("grandparentTitle")
+                    episode_name   = self.node.get("title")
+                    episode_number = int(self.node.get("index"))
+                    season_number  = int(self.node.get("parentIndex"))
+                    series_name    = self.node.get("grandparentTitle")
                     title = "%s - %dx%.2d - %s" % (series_name, season_number, episode_number, episode_name)
                 else:
-                    title = self.tree.find('.Video').get("title")
+                    # "clip", ...
+                    title = self.node.get("title")
             setattr(self, "_title", title)
         return getattr(self, "_title")
 
-    def is_multipart(self):
-        media_count = 0
-        part_count = 0
-        for media in self.tree.findall('./Video/Media'):
-            media_count += 1
-            for part in media.findall('./Part'):
-                part_count += 1
-
-        # If there is one "part" for every "media", then this isn't
-        # a multi-part item
-        return media_count != part_count
-
-    def _get_attribute(self, path, attr, default=None):
-        el = self.tree.find(path)
-        if el:
-            return el.get(attr, None)
-        return default
-
-    def _get_media_key(self):
-        if not hasattr(self, "_media_key"):
-            video_tag = self.tree.find('./Video')
-            media_key = video_tag.get('ratingKey', None)
-            setattr(self, '_media_key', media_key)
-        return self._media_key
-
-    def _get_plex_url(self, url, data={}):
-        if settings.myplex_token:
-            data.update({
-                "X-Plex-Token": settings.myplex_token
-            })
-
-        data.update({
-            "X-Plex-Version":           __version__,
-            "X-Plex-Client-Identifier": settings.client_uuid,
-            "X-Plex-Provides":          "player",
-            "X-Plex-Device-Name":       settings.player_name,
-            "X-Plex-Model":             "RaspberryPI",
-            "X-Plex-Device":            "RaspberryPI",
-
-            # Lies
-            "X-Plex-Product":           "Plex Home Theater",
-            "X-Plex-Platform":          "Plex Home Theater"
-        })
-
-        # Kinda ghetto...
-        sep = "?"
-        if sep in url:
-            sep = "&"
-
-        if data:
-            url = "%s%s%s" % (url, sep, urllib.urlencode(data))
-
-        log.debug("Created URL: %s" % url)
-
-        return url
-
-    def _safe_urlopen(self, url, data={}):
-        url = self._get_plex_url(url, data)
-
-        try:
-            page = urllib.urlopen(url)
-            if page.code == 200:
-                return True
-            log.error("Error opening URL '%s': page returned %d" % (url,
-                                                                    page.code))
-        except Exception, e:
-            log.error("Error opening URL '%s':  %s" % (url, e))
-
-        return False
-
-    def get_machine_identifier(self):
-        if not hasattr(self, "_machine_identifier"):
-            doc = urllib.urlopen(self._get_plex_url(self.server_url))
-            tree = et.parse(doc)
-            setattr(self, "_machine_identifier", tree.find('.').get("machineIdentifier"))
-        return getattr(self, "_machine_identifier", None)
-
-
-    def get_media_url(self, part_num=1):
-        """
-        Returns the URL to the original file.  If transcoding is required, this
-        URL should not be used;  see ``get_transcode_url`` instead.
-        """
-        if part_num < 1:
-            part_num = 1
-
-        part = self.tree.find('./Video/Media[1]/Part[%d]' % int(part_num))
-        if part is not None:
-            url  = urlparse.urljoin(self.server_url, part.get('key'))
-            return self._get_plex_url(url)
-
-    def get_transcode_url(self, extension='mkv',    format='matroska',
-                          video_codec='libx264',    audio_codec=None,
-                          continue_play=False,      continue_time=None,
-                          video_width='1920',       video_height='1080',
-                          video_bitrate="20000",    video_quality=100,
-                          direct_play=True):
+    def get_playback_url(self, direct_play=True, 
+                         video_height=1080,     video_width=1920,
+                         video_bitrate=20000,   video_quality=100):
         """
         Returns the URL to use for the trancoded file.
         """
         if direct_play:
-            return self.get_media_url()
+            if not self._part_node:
+                return
+            url  = urlparse.urljoin(self.parent.server_url, self._part_node.get("key", ""))
+            return get_plex_url(url)
 
         url = "/video/:/transcode/universal/start.m3u8"
         args = {
-            "path":             self._get_attribute('./Video', 'key'),
+            "path":             self.node.get("key"),
             "session":          settings.client_uuid,
             "protocol":         "hls",
             "directPlay":       "0",
@@ -177,6 +135,8 @@ class Media(object):
             "maxVideoBitrate":  str(video_bitrate),
             "videoQuality":     str(video_quality),
             "videoResolution":  "%sx%s" % (video_width,video_height),
+            "mediaIndex":       self._media or 0,
+            "partIndex":        self._part or 0,
             #"skipSubtitles":    "1",
         }
 
@@ -194,14 +154,17 @@ class Media(object):
             args["X-Plex-Client-Profile-Extra"] = "+".join(audio_formats)
             args["X-Plex-Client-Capabilities"]  = protocols 
 
-        return self._get_plex_url(urlparse.urljoin(self.server_url, url), args)
+        return get_plex_url(urlparse.urljoin(self.parent.server_url, url), args)
 
     def get_audio_idx(self):
         """
         Returns the index of the selected stream
         """
+        if not self._part_node:
+            return
+
         match = False
-        for index, stream in enumerate(self.tree.findall("./Video/Media/Part/Stream[@streamType='2']") or []):
+        for index, stream in enumerate(self._part_node.findall("./Stream[@streamType='2']") or []):
             if stream.get('selected') == "1":
                 match = True
                 break
@@ -210,8 +173,11 @@ class Media(object):
             return index+1
 
     def get_subtitle_idx(self):
+        if not self._part_node:
+            return
+
         match = False
-        for index, sub in enumerate(self.tree.findall("./Video/Media/Part/Stream[@streamType='3']") or []):
+        for index, sub in enumerate(self._part_node.findall("./Stream[@streamType='3']") or []):
             if sub.get('selected') == "1":
                 match = True
                 break
@@ -220,47 +186,72 @@ class Media(object):
             return index+1
 
     def get_duration(self):
-        return self._get_attribute('./Video', 'duration')
+        return self.node.get("duration")
 
     def get_rating_key(self):
-        return self._get_attribute('./Video', 'ratingKey')
+        return self.node.get("ratingKey")
 
     def get_video_attr(self, attr, default=None):
-        return self._get_attribute('./Video', attr, default)
+        return self.node.get(attr, default)
 
     def update_position(self, ms):
         """
         Sets the state of the media as "playing" with a progress of ``ms`` milliseconds.
         """
-        media_key = self._get_media_key()
+        rating_key = self.get_rating_key()
 
-        if media_key is None:
-            log.error("No 'ratingKey' could be found in XML from URL '%s'" % (self.path.geturl()))
+        if rating_key is None:
+            log.error("No 'ratingKey' could be found in XML from URL '%s'" % (self.parent.path.geturl()))
             return False
 
-        url  = urlparse.urljoin(self.server_url, '/:/progress')
+        url  = urlparse.urljoin(self.parent.server_url, '/:/progress')
         data = {
-            "key":          media_key,
+            "key":          rating_key,
             "time":         int(ms),
             "identifier":   "com.plexapp.plugins.library",
             "state":        "playing"
         }
         
-        return self._safe_urlopen(url, data)
+        return safe_urlopen(url, data)
 
     def set_played(self):
-        media_key = self._get_media_key()
+        rating_key = self.get_rating_key()
 
-        if media_key is None:
-            log.error("No 'ratingKey' could be found in XML from URL '%s'" % (self.path.geturl()))
+        if rating_key is None:
+            log.error("No 'ratingKey' could be found in XML from URL '%s'" % (self.parent.path.geturl()))
             return False
 
-        url  = urlparse.urljoin(self.server_url, '/:/scrobble')
+        url  = urlparse.urljoin(self.parent.server_url, '/:/scrobble')
         data = {
-            "key":          media_key,
+            "key":          rating_key,
             "identifier":   "com.plexapp.plugins.library"
         }
 
-        self.played = self._safe_urlopen(url, data)
+        self.played = safe_urlopen(url, data)
         return self.played
 
+class Media(object):
+    def __init__(self, url):
+        """
+        ``url`` should be a URL to the Plex XML media item.
+        """
+        self.path       = urlparse.urlparse(url)
+        self.server_url = self.path.scheme + "://" + self.path.netloc
+        self.tree       = et.parse(urllib.urlopen(get_plex_url(url)))
+
+    def __str__(self):
+        return self.path.path
+
+    def get_video(self, index, media=0, part=0):
+        video = self.tree.find('./Video[%s]' % (index+1))
+        if video:
+            return Video(video, self, media, part)
+
+        log.error("Media::get_video couldn't find video at index %s" % video)
+
+    def get_machine_identifier(self):
+        if not hasattr(self, "_machine_identifier"):
+            doc = urllib.urlopen(get_plex_url(self.server_url))
+            tree = et.parse(doc)
+            setattr(self, "_machine_identifier", tree.find('.').get("machineIdentifier"))
+        return getattr(self, "_machine_identifier", None)

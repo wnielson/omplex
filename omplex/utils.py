@@ -1,5 +1,12 @@
+import logging
+import urllib
+
+from __init__ import __version__
+from conf import settings
 from datetime import datetime
 from functools import wraps
+
+log = logging.getLogger("utils")
 
 class Timer(object):
     def __init__(self):
@@ -31,3 +38,52 @@ def synchronous(tlockname):
                 tlock.release()
         return _synchronizer
     return _synched
+
+def get_plex_url(url, data={}):
+    if settings.myplex_token:
+        data.update({
+            "X-Plex-Token": settings.myplex_token
+        })
+
+    data.update({
+        "X-Plex-Version":           __version__,
+        "X-Plex-Client-Identifier": settings.client_uuid,
+        "X-Plex-Provides":          "player",
+        "X-Plex-Device-Name":       settings.player_name,
+        "X-Plex-Model":             "RaspberryPI",
+        "X-Plex-Device":            "RaspberryPI",
+
+        # Lies
+        "X-Plex-Product":           "Plex Home Theater",
+        "X-Plex-Platform":          "Plex Home Theater"
+    })
+
+    # Kinda ghetto...
+    sep = "?"
+    if sep in url:
+        sep = "&"
+
+    if data:
+        url = "%s%s%s" % (url, sep, urllib.urlencode(data))
+
+    log.debug("get_plex_url Created URL: %s" % url)
+
+    return url
+
+def safe_urlopen(url, data={}):
+    """
+    Opens a url and returns True if an HTTP 200 code is returned,
+    otherwise returns False.
+    """
+    url = get_plex_url(url, data)
+
+    try:
+        page = urllib.urlopen(url)
+        if page.code == 200:
+            return True
+        log.error("Error opening URL '%s': page returned %d" % (url,
+                                                                page.code))
+    except Exception, e:
+        log.error("Error opening URL '%s':  %s" % (url, e))
+
+    return False
