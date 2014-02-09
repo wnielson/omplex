@@ -112,12 +112,15 @@ class TimelineManager(threading.Thread):
             options["key"]               = video.get_video_attr("key")
             options["containerKey"]      = video.get_video_attr("key")
             options["guid"]              = video.get_video_attr("guid")
-            options["duration"]          = video.get_video_attr("duration")
+            options["duration"]          = video.get_video_attr("duration", "0")
             options["address"]           = media.path.hostname
             options["protocol"]          = media.path.scheme
             options["port"]              = media.path.port
             options["machineIdentifier"] = media.get_machine_identifier()
             options["seekRange"]         = "0-%s" % options["duration"]
+
+            if options["duration"] == "0":
+                options.pop("duration")
 
             controllable.append("playPause")
             controllable.append("stop")
