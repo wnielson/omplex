@@ -45,7 +45,7 @@ class TimelineManager(threading.Thread):
                 self.idleTimer.restart()
 
             if settings.display_sleep > 0 and self.idleTimer.elapsed() >= settings.display_sleep:
-                log.("TimelineManager::run putting display to sleep")
+                log.debug("TimelineManager::run putting display to sleep")
                 display.power_off()
 
             time.sleep(1)
