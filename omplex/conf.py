@@ -23,7 +23,8 @@ class Settings(object):
         "audio_output":         "hdmi",
         "audio_ac3passthrough": False,
         "audio_dtspassthrough": False,
-        "client_uuid":          str(uuid.uuid4())
+        "client_uuid":          str(uuid.uuid4()),
+        "display_sleep":        0
     }
 
     def __getattr__(self, name):

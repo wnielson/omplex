@@ -11,6 +11,7 @@ from threading import Thread, RLock
 from time import sleep
 
 from conf import settings
+from display import display
 from osd import osd
 from utils import synchronous, Timer
 
@@ -56,6 +57,10 @@ class PlayerManager(object):
 
     @synchronous('_lock')
     def play(self, video, offset=0):
+        if not display.is_on:
+            log.debug("PlayerManager::play display is off, turning on")
+            display.power_on()
+
         self.stop()
 
         args = []

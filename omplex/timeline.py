@@ -14,6 +14,7 @@ except:
     from StringIO import StringIO
 
 from conf import settings
+from display import display
 from player import playerManager
 from subscribers import remoteSubscriberManager
 from utils import Timer
@@ -24,6 +25,7 @@ class TimelineManager(threading.Thread):
     def __init__(self):
         self.currentItems   = {}
         self.currentStates  = {}
+        self.idleTimer      = Timer()
         self.subTimer       = Timer()
         self.serverTimer    = Timer()
         self.stopped        = False
@@ -40,6 +42,12 @@ class TimelineManager(threading.Thread):
             if playerManager._player and playerManager._video and not playerManager.is_paused():
                 self.SendTimelineToSubscribers()
                 playerManager.update()
+                self.idleTimer.restart()
+
+            if settings.display_sleep > 0 and self.idleTimer.elapsed() >= settings.display_sleep:
+                log.("TimelineManager::run putting display to sleep")
+                display.power_off()
+
             time.sleep(1)
 
     def SendTimelineToSubscribers(self):

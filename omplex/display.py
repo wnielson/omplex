@@ -1,3 +1,4 @@
+# Potentially useful: http://www.raspberrypi.org/forum/viewtopic.php?f=41&t=7570
 import json
 import logging
 import os
@@ -73,11 +74,11 @@ class Display(object):
             self._get_modes()
 
     def power_off(self):
-        try:
-            self.__call(['--off'])
-            return True
-        except:
-            return False
+        if not self.is_on:
+            # Already off
+            return
+
+        self.__call(['--off'])
 
     def power_on(self, mode=None, code=None):
         if mode in ["DMT", "CEA"] and code:
