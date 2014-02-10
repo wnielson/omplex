@@ -79,6 +79,7 @@ class Display(object):
             return
 
         self.__call(['--off'])
+        self.update(state=True)
 
     def power_on(self, mode=None, code=None):
         if mode in ["DMT", "CEA"] and code:

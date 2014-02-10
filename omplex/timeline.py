@@ -39,14 +39,16 @@ class TimelineManager(threading.Thread):
 
     def run(self):
         while not self.halt:
-            if playerManager._player and playerManager._video and not playerManager.is_paused():
-                self.SendTimelineToSubscribers()
+            if playerManager._player and playerManager._video:
+                if not playerManager.is_paused():
+                    self.SendTimelineToSubscribers()
                 playerManager.update()
                 self.idleTimer.restart()
-
-            if settings.display_sleep > 0 and self.idleTimer.elapsed() >= settings.display_sleep:
-                log.debug("TimelineManager::run putting display to sleep")
-                display.power_off()
+            else:
+                if settings.display_sleep > 0 and self.idleTimer.elapsed() >= settings.display_sleep:
+                    if display.is_on:
+                        log.debug("TimelineManager::run putting display to sleep")
+                        display.power_off()
 
             time.sleep(1)
 

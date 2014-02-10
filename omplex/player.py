@@ -43,7 +43,12 @@ class PlayerManager(object):
     @synchronous('_lock')
     def update(self):
         if self._video and self._player:
-            if self.last_update.elapsed() > SCROBBLE_INTERVAL:
+            # Check to see if we need to turn the display on
+            if not display.is_on:
+                log.debug("PlayerManager::update display is off, turning on")
+                display.power_on()
+
+            if self.last_update.elapsed() > SCROBBLE_INTERVAL and not self.is_paused():
                 if not self._video.played:
                     position = self._player.position * 1e3   # In ms
                     duration = self._video.get_duration()
@@ -57,10 +62,6 @@ class PlayerManager(object):
 
     @synchronous('_lock')
     def play(self, video, offset=0):
-        if not display.is_on:
-            log.debug("PlayerManager::play display is off, turning on")
-            display.power_on()
-
         self.stop()
 
         args = []
