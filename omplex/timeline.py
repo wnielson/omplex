@@ -127,9 +127,6 @@ class TimelineManager(threading.Thread):
             options["machineIdentifier"] = media.get_machine_identifier()
             options["seekRange"]         = "0-%s" % options["duration"]
 
-            if options["duration"] == "0":
-                options.pop("duration")
-
             controllable.append("playPause")
             controllable.append("stop")
             controllable.append("stepBack")
@@ -138,6 +135,15 @@ class TimelineManager(threading.Thread):
             controllable.append("audioStream")
             controllable.append("seekTo")
 
+            # If the duration is unknown, disable seeking
+            if options["duration"] == "0":
+                options.pop("duration")
+                options.pop("seekRange")
+                controllable.remove("seekTo")
+
+            # Volume control is enabled only if output isn't HDMI,
+            # although technically I'm pretty sure we can still control
+            # the volume even if the output is hdmi...
             if settings.audio_output != "hdmi":
                 controllable.append("volume")
                 options["volume"] = str(playerManager.get_volume(percent=True)*100 or 0)
