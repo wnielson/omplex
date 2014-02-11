@@ -7,6 +7,8 @@ import subprocess
 
 log = logging.getLogger("display")
 
+from conf import settings
+
 class Display(object):
     _EXECUTABLE_PATHS = (
         "/opt/vc/bin/tvservice",
@@ -63,6 +65,17 @@ class Display(object):
         p.wait()
         return p
 
+    def __power_on(self, args):
+        if self.__call(args):
+            if self.__call(["fbset", "-depth", "8"]):
+                if self.__call(["fbset", "-depth", "16"]):
+                    if self.__call(["chvt", "6"]):
+                        if self.__call(["chvt", "7"]):
+                            self.update(state=True)
+                            return True
+        return False
+
+
     def update(self, state=False, name=False, modes=False, full=False):
         if state or full:
             self._get_state()
@@ -83,13 +96,18 @@ class Display(object):
 
     def power_on(self, mode=None, code=None):
         if mode in ["DMT", "CEA"] and code:
-            if self.__call(["-e", "%s %s" % (mode, code)]):
-                self.update(state=True)
-            return
-
+            if self.__power_on(["-e", "%s %s" % (mode, code)]):
+                return
+        elif settings.display_mode:
+            try:
+                mode, code = settings.display_mode.split()
+                if self.__power_on(["-e", "%s %s" % (mode, code)]):
+                    return
+            except:
+                pass
+            
         # Just power on with prefered settings
-        if self.__call(["-p"]):
-            self.update(state=True)
+        self.__power_on(["-p"])
 
     def _get_modes(self, mode=None):
         if mode == "DMT" or mode is None:

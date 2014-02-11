@@ -24,7 +24,8 @@ class Settings(object):
         "audio_ac3passthrough": False,
         "audio_dtspassthrough": False,
         "client_uuid":          str(uuid.uuid4()),
-        "display_sleep":        0
+        "display_sleep":        0,
+        "display_mode":         ""
     }
 
     def __getattr__(self, name):
