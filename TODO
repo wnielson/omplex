@@ -5,7 +5,7 @@
 3. Add picture and music support
 4. Handle multi-part media better.  This is mainly aimed at the channels which have videos that are broken into multiple parts, like the Daily Show.  Plex only gives the duration for the whole video, not in individual parts, which makes seeking difficult.
 One way to work around this would be to use omxplay (with the "-i" flag) to extract the actual length of each part.
-6. Add subtitle and audio stream toggling to the OSD
+5. Add subtitle and audio stream toggling to the OSD
 
 
 # Done
