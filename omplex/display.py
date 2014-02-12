@@ -8,13 +8,9 @@ import subprocess
 log = logging.getLogger("display")
 
 from conf import settings
+from utils import find_exe
 
 class Display(object):
-    _EXECUTABLE_PATHS = (
-        "/opt/vc/bin/tvservice",
-        "/usr/bin/tvservice",
-    )
-
     _STATUS_RE = re.compile(r"state [\d\w]+ \[(?P<interface>[\w]+) (?P<mode>[\w]+) \((?P<code>[\d]+)\) [\w]+ [\w]+ (?P<aspect>[\d]+:[\d]+)\], (?P<resolution>[\d]+x[\d]+) @ (?P<rate>[\d]+)Hz, (?P<scan>[\w]+)")
     _AUDIO_RE  = (
         re.compile(r"Max channels: (?P<channels>[\d]+)"),
@@ -42,11 +38,9 @@ class Display(object):
 
         self.audio = {}
 
-        self.__exe = None
-        for path in self._EXECUTABLE_PATHS:
-            if os.access(path, os.X_OK):
-                self.__exe = path
-                break
+        self.__tvservice_bin = find_exe("tvservice")
+        self.__chvt_bin      = find_exe("chvt")
+        self.__fbset_bin     = find_exe("fbset")
 
         self.update(full=True)
 
@@ -56,21 +50,34 @@ class Display(object):
     def __repr__(self):
         return "<Display: %s>" % str(self)
 
-    def __call(self, args):
-        if self.__exe is None:
-            return
-
-        args.insert(0, self.__exe)
+    def __call(self, exe, args):
+        args.insert(0, exe)
         p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         p.wait()
         return p
 
+
+    def __tvservice(self, args):
+        if self.__tvservice_bin is None:
+            return
+        return self.__call(self.__tvservice_bin, args)
+
+    def __chvt(self, args):
+        if self.__chvt_bin is None:
+            return
+        return self.__call(self.__chvt_bin, args)
+
+    def __fbset(self, args):
+        if self.__fbset_bin is None:
+            return
+        return self.__call(self.__fbset_bin, args)
+
     def __power_on(self, args):
-        if self.__call(args):
-            if self.__call(["fbset", "-depth", "8"]):
-                if self.__call(["fbset", "-depth", "16"]):
-                    if self.__call(["chvt", "6"]):
-                        if self.__call(["chvt", "7"]):
+        if self.__tvservice(args):
+            if self.__fbset(["-depth", "8"]):
+                if self.__fbset(["-depth", "16"]):
+                    if self.__chvt(["6"]):
+                        if self.__chvt(["7"]):
                             self.update(state=True)
                             return True
         return False
@@ -91,7 +98,7 @@ class Display(object):
             # Already off
             return
 
-        self.__call(['--off'])
+        self.__tvservice(['--off'])
         self.update(state=True)
 
     def power_on(self, mode=None, code=None):
@@ -111,7 +118,7 @@ class Display(object):
 
     def _get_modes(self, mode=None):
         if mode == "DMT" or mode is None:
-            p = self.__call(['-m', 'DMT', '-j'])
+            p = self.__tvservice(['-m', 'DMT', '-j'])
             if p:
                 try:
                     dmt = json.load(p.stdout)
@@ -120,7 +127,7 @@ class Display(object):
                     log.info("Display::_get_modes no DMT modes found")
 
         if mode == "CEA" or mode is None:
-            p = self.__call(['-m', 'CEA', '-j'])
+            p = self.__tvservice(['-m', 'CEA', '-j'])
             if p:
                 try:
                     cea = json.load(p.stdout)
@@ -129,7 +136,7 @@ class Display(object):
                     log.info("Display::_get_modes no CEA modes found")
 
     def _get_name(self):
-        p = self.__call(['--name'])
+        p = self.__tvservice(['--name'])
         if not p:
             return
 
@@ -145,7 +152,7 @@ class Display(object):
             state 0x12001a [HDMI CEA (4) RGB lim 16:9], 1280x720 @ 60Hz, progressive
             state 0x120002 [TV is off]
         """
-        p = self.__call(['-s'])
+        p = self.__tvservice(['-s'])
         if not p:
             return
 
@@ -172,7 +179,7 @@ class Display(object):
         self.is_on      = True
 
     def _get_audio(self):
-        p = self.__call(["-a"])
+        p = self.__tvservice(["-a"])
         if not p:
             return
 

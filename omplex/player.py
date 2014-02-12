@@ -46,6 +46,7 @@ class PlayerManager(object):
             # Check to see if we need to turn the display on
             if not display.is_on:
                 log.debug("PlayerManager::update display is off, turning on")
+                self._player.pause()
                 display.power_on()
 
             if self.last_update.elapsed() > SCROBBLE_INTERVAL and not self.is_paused():

@@ -1,4 +1,5 @@
 import logging
+import os
 import urllib
 
 from __init__ import __version__
@@ -87,3 +88,23 @@ def safe_urlopen(url, data={}):
         log.error("Error opening URL '%s':  %s" % (url, e))
 
     return False
+
+
+def find_exe(filename, search_path=None):
+    """
+    Given a search path, find executable.
+    Originally fromL http://code.activestate.com/recipes/52224/
+    """
+    file_found = 0
+    if search_path is None:
+        search_path = os.environ.get("PATH", "")
+
+    paths = search_path.split(os.pathsep)
+    for path in paths:
+        if os.access(os.path.join(path, filename), os.X_OK):
+            file_found = 1
+            break
+    if file_found:
+        return os.path.abspath(os.path.join(path, filename))
+    else:
+        return None
